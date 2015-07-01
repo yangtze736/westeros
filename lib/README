@@ -1,0 +1,7 @@
+## TODO
+DEPENDENT:	
+	libmiddleware.so :
+				libjson.so
+
+DEPENDENT LIBRARY:
+	curl-dev

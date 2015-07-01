@@ -1,0 +1,56 @@
+2015-06-29 upgrade interface, bak.
+2015-06-26 change code structure.
+2015-06-25 update interface, bak.
+2015-06-25 support https transfer.
+2015-06-24 finish download task query.
+2015-06-23 modify makefile.
+2015-06-23 support db query, can work!
+2015-06-23 put task progress into db, can work!
+2015-06-18 add source code package.
+2015-06-18 add CppSQLite3 wrap.
+2015-06-18 response errorNum
+2015-06-18 add progress func.
+2015-06-18 mofidy samples makefile, fix bug.
+2015-06-16 add sqlite wrap func.
+2015-06-11 parse parameter from str and generate url.
+2015-06-10 modify libsecrypto.
+2015-06-09 add itoa func.
+2015-06-09 add metedata when upload.
+2015-06-08 mdify total cost func.
+2015-06-04 add secrypto.h =.=
+2015-06-03 single file delete.
+2015-06-03 use access token when encrypt.
+2015-06-03 use access token when encrypt.
+2015-06-03 change log
+2015-06-03 modify storage list.
+2015-06-03 add version info.
+2015-06-02 interface upgrade, finish.
+2015-06-02 interface upgrade, todo
+2015-06-02 interface upgrade.
+2015-06-01 modify middlewarecpp
+2015-06-01 modify parse json.
+2015-05-29 add all.
+2015-05-29 add samples
+2015-05-28 test user register interface, work.
+2015-05-28 add user register interface.
+2015-05-27 get in memory demo.
+2015-05-26 close file before del.
+2015-05-26 test file
+2015-05-26 add middleware foundation class.
+2015-05-25 parser token from jsonStr, get tenant from ClientAgent.
+2015-05-22 parser token & tenant from client-json string.
+2015-05-22 support decrypto func, todo.
+2015-05-22 support encrypto func, todo.
+2015-05-21 modify parse json.
+2015-05-21 add log file.
+2015-05-21 fix bug, fclose when download finish.
+2015-05-20 add middleware log func.
+2015-05-18 update samples file
+2015-05-18 temp version for show.
+2015-05-14 add some test demo
+2015-05-14 message
+2015-05-14 message
+2015-05-11 add readme, del shared object.
+2015-05-08 without lib dir, can't compile.
+2015-05-08 test push operation.
+2015-05-08 move middleware to inner.
