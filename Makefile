@@ -7,11 +7,9 @@ HOME=/usr/local/middleware
 
 # if you have new inc folder need to input, add in below like 
 INCLUDE +=\
-          -I. \
           -I ./include \
-		  -I ./parser/json/include \
 
-CFLAGS= -g $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++11
+CFLAGS= -g -O2 $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++11
 CC = g++
 
 # if you have new lib need to link, add in below like
@@ -36,14 +34,14 @@ all: check $(LIB_MIDDLEWARE) clean
 
 check:
 	cd lib/ && tar zxvf libdependent.tar.gz
-	if [ ! -d /usr/local/middleware/lib ];then -mkdir -p /usr/local/middleware/lib;fi
-	cp -rf lib/* /usr/local/middleware/lib
+	if [ ! -d $(HOME)/lib ];then mkdir -p $(HOME)/lib;fi
+	cp -rf lib/* $(HOME)/lib
 
 clean:
-	rm -fr ./lib/lib*.so*
+	rm -fr lib/lib*.so*
 	cp -rf $(LIB_MIDDLEWARE) $(HOME)/lib/
 	mv -f $(LIB_MIDDLEWARE) lib/
-	rm -rf ./parser/json/*.o;rm -fr *.o 
+	rm -fr *.o 
 
 log:
 	git log '--pretty=format:%ad %s' --date=short > Changelog
@@ -66,7 +64,7 @@ dep:
 interface.o:src/interface.cpp
 baseFunc.o:src/baseFunc.cpp include/baseFunc.h
 mfcFile.o:src/mfcFile.cpp include/mfcFile.h
-middlewareLog.o:src/middlewareLog.cpp include/middlewareLog.h
+log.o:src/log.cpp include/log.h
 static.o:src/static.cpp include/static.h
 httpClient.o:src/httpClient.cpp include/httpClient.h
 middleware.o:src/middleware.cpp include/middleware.h

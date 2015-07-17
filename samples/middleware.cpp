@@ -16,6 +16,12 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+/*
+ * how to get access token
+ * curl -k -X POST -d '{"password":"123456","email":"zhang@163.com"}' https://10.3.3.236:443/oauth/access_token
+ * curl -k -X POST  https://10.3.3.236:443/oauth/token_refresh -H "X-Auth-Token:DqOs4479hs6Q2ez9EY1D3axT9diRiS3SJxaSx9lb" 
+ */
+
 long long get_time()
 {
 	timeval tp;
@@ -34,12 +40,17 @@ int main()
 	middleware->getVersionInfo(version, info);
 	printf(" MiddleWare Version : %s\n MiddleWare Info : %s\n", version.c_str(), info.c_str());
 
-#if 0
-	std::string upStr, downStr;
+#if 1
+	std::string upStr, downStr, statusStr;
+	std::string uuid = "20150713111";
+
 	middleware->getUploadTask(upStr);
 	middleware->getDownloadTask(downStr);
-	printf("upload : %s\n", upStr.c_str()); 
-	printf("down ：%s\n", downStr.c_str());
+	middleware->checkTaskStatus(uuid, statusStr);
+	printf("upload     : %s\n", upStr.c_str()); 
+	printf("download   : %s\n", downStr.c_str());
+	printf("uuid       : %s\n", uuid.c_str());
+	printf("status     : %s\n", statusStr.c_str());
 	//exit(0);
 #endif
 
@@ -78,7 +89,7 @@ int main()
 #endif
 #if 0
 	std::string method = "mergeFile";
-	std::string jsonStr = "{\"X-Auth-Token\":\"xTexuD7XN9oKJPzivigHfXB0kA6VmeVJhVUlkwDo\",\"uuid\":\"1233455\",\"Destination\":\"/normal/seg_test\",\"Merge-Info\":[{\"path\":\"/segments/seg_test/2\",\"etag\":\"qwerty\",\"size_bytes\":1234},{\"path\":\"/segments/seg_test/1\",\"etag\":\"asdfg\",\"size_bytes\":2345}]}";
+	std::string jsonStr = "{\"X-Auth-Token\":\"UC4tgmodkQjdPeut7HnU02pujyQf9jxpb5cH9E1E\",\"uuid\":\"1233455\",\"Destination\":\"/normal/seg_test\",\"Merge-Info\":[{\"path\":\"/segments/seg_test/2\",\"etag\":\"qwerty\",\"size_bytes\":1234},{\"path\":\"/segments/seg_test/1\",\"etag\":\"asdfg\",\"size_bytes\":2345}]}";
 	std::string responseStr = "?multipart-manifest=put";
 	middleware->data_pipeline(method, jsonStr, responseStr);
 #endif

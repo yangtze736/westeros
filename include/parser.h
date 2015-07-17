@@ -53,6 +53,9 @@ class Parser{
 		~Parser();
 	
 	public:
+		static bool genTaskStr(std::string &queryStr, std::map<std::string,std::string> &taskMap);
+
+	public:
 		std::string parserKey(const std::string &strJson, const std::string &key);
 		//
 		bool parseValidate(std::string &email, std::string &passwd, std::string uuid, const std::string &strJson);

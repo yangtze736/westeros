@@ -48,4 +48,12 @@ extern "C" {
 		obj.getDownloadTask(queryStr);
 		strcpy(query, queryStr.c_str());
 	}
+
+	bool checkTaskStatus(char *uuid, char *response){
+		std::string uuid_str(uuid);
+		std::string response_str;
+
+		obj.checkTaskStatus(uuid_str, response_str);
+		strcpy(response, response_str.c_str());
+	}
 }

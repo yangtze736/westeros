@@ -18,8 +18,8 @@
 
 FileDownload::FileDownload()
 {
-	initDB();
 	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	initDB();
 }
 
 FileDownload::~FileDownload()
@@ -33,12 +33,14 @@ void FileDownload::initDB(void)
 	m_db->open("./test.db");
 	if(!m_db->tableExists("download"))
 	{
+		pthread_spin_lock(&m_lock);
 		try{
-			m_db->execDML("create table download(id char(20) primary key, total int, now int);");
+			m_db->execDML("create table download(id char(64) primary key, total int, now int);");
 		}
 		catch(CppSQLite3Exception &e){
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
 		}
+		pthread_spin_unlock(&m_lock);
 	}
 }
 
@@ -89,12 +91,14 @@ int FileDownload::file_download(const std::string &strFilename, const std::strin
 	// insert data
 	char buf[128] = {0};
 	sprintf(buf, "insert into download values ('%s', 0, 0);",uuid.c_str());
+	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
 	}
 	catch(CppSQLite3Exception &e){
 		fprintf(stderr, "ErrorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
 	}
+	pthread_spin_unlock(&m_lock);
 
 	CURLcode res;  
 	CURL* curl = curl_easy_init();  

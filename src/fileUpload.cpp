@@ -19,8 +19,8 @@
 
 FileUpload::FileUpload()
 {
-	initDB();
 	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	initDB();
 }
 
 FileUpload::~FileUpload()
@@ -34,12 +34,14 @@ void FileUpload::initDB(void)
 	m_db->open("./test.db");
 	if(!m_db->tableExists("upload"))
 	{
+		pthread_spin_lock(&m_lock);
 		try{
-			m_db->execDML("create table upload(id char(20) primary key, total int, now int);");
+			m_db->execDML("create table upload(id char(64) primary key, total int, now int);");
 		}
 		catch(CppSQLite3Exception &e){
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
 		}
+		pthread_spin_unlock(&m_lock);
 	}
 }
 
@@ -150,12 +152,14 @@ int FileUpload::file_upload(const std::string &strFilename, const std::string &u
 	// insert data
 	char buf[128] = {0};
 	sprintf(buf, "insert into upload values ('%s', 0, 0);",uuid.c_str());
+	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
 	}
 	catch(CppSQLite3Exception &e){
 		fprintf(stderr, "ErrorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
 	}
+	pthread_spin_unlock(&m_lock);
 
 	CURLcode res;
 	CURL *curl = curl_easy_init();

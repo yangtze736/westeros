@@ -39,10 +39,22 @@ MiddleWare::MiddleWare()
 
 	m_db = new CppSQLite3DB;
 	m_db->open("./test.db");
+	if(!m_db->tableExists("status"))
+	{
+		try{
+			m_db->execDML("create table status(id char(64) primary key, info char(512));");
+		}
+		catch(CppSQLite3Exception &e){
+			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		}
+	}
+
+	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
 }
 
 MiddleWare::~MiddleWare()
 {
+	pthread_spin_destroy(&m_lock);
 }
 
 bool MiddleWare::test(void)
@@ -64,13 +76,17 @@ bool MiddleWare::test(void)
 	std::string sRecovery;
 	bool b = snappy::Uncompress(compress.c_str(),compress_len,&sRecovery);
 	printf("\nsRecovery.len:%d\nsRecovery:\n[%s]\n",(int)sRecovery.length(),sRecovery.c_str());
-	// test compress && decompress file
+
+	// test compress file && decompress file
 	CompressFile("./test_file");
 	UncompressFile("./test_file.comp");
 	exit(0);
 #endif
-#if 0
-	// split file && 
+#if 1
+	// test split file && merge file
+	//MfcFile::splitFile("./split_file", 0);
+	//sleep(10);
+	MfcFile::mergeFile("./split_file.001");
 	exit(0);
 #endif
 
@@ -79,6 +95,9 @@ bool MiddleWare::test(void)
 
 bool MiddleWare::data_pipeline(const std::string &method, const std::string &strJson, std::string &strResponse)
 {
+	// for test
+	test();
+
 	std::string strIpPort;
 	if(!getIpPort(strIpPort))
 	{
@@ -86,17 +105,19 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		return false;
 	}
 
-
-	//parser parameter from strResponse string.
+	// parser parameter from strResponse string.
 	ParameterStruct paraStruct;
 	parseFromStr(strResponse, paraStruct);
 	strResponse.clear();
 	// end of parser
 
+	// record task status when finish
+	std::string uuid;
+
 	if( 0 == strcmp(method.c_str(), "validate"))
 	{
 		printf("method is validate.\n");
-		std::string email, passwd, uuid;
+		std::string email, passwd;
 
 		Parser parser;
 		parser.parseValidate(email, passwd, uuid, strJson);
@@ -116,12 +137,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "containerList"))
 	{
 		printf("method is containerList.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 
 		Parser parser;
 		parser.parseContainerList(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -136,12 +158,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "createContainer"))
 	{
 		printf("method is createContainer.\n");
-		std::string token, tenant, container, uuid;
+		std::string token, tenant, container;
 
 		Parser parser;
 		parser.parseCreateContainer(token, uuid, container, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -156,12 +179,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "deleteContainer"))
 	{
 		printf("method is deleteContainer.\n");
-		std::string token, tenant, container, uuid;
+		std::string token, tenant, container;
 		
 		Parser parser;
 		parser.parseDeleteContainer(token, uuid, container, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -176,12 +200,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "listContainerObjects"))
 	{
 		printf("method is listContainerObjects.\n");
-		std::string token, tenant, container, uuid;
+		std::string token, tenant, container;
 		
 		Parser parser;
 		parser.parseListContainerObjects(token, uuid, container, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 		
@@ -196,12 +221,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "createObject"))
 	{
 		printf("method is createObject.\n");
-		std::string token, tenant, localObject, container, objectName, uuid;
+		std::string token, tenant, localObject, container, objectName;
 		
 		Parser parser;
 		parser.parseCreateObject(token, uuid, localObject, container, objectName, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -217,12 +243,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "deleteObject"))
 	{
 		printf("method is deleteObject.\n");
-		std::string token, tenant, container, uuid, objectName;
+		std::string token, tenant, container, objectName;
 		
 		Parser parser;
 		parser.parseDeleteObject(token, uuid, container, objectName, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -237,12 +264,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "copyObject"))
 	{
 		printf("method is copyObject.\n");
-		std::string token, tenant, container, uuid, objectName, dest;
+		std::string token, tenant, container, objectName, dest;
 		
 		Parser parser;
 		parser.parseCopy(token, uuid, container, objectName, dest, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 		
@@ -257,12 +285,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "readObject"))
 	{
 		printf("method is readObject.\n");
-		std::string token, tenant, localObject, container, objectName, uuid;
+		std::string token, tenant, localObject, container, objectName;
 		
 		Parser parser;
 		parser.parseReadObject(token, uuid, localObject, container, objectName, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -278,12 +307,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getQuotaInfo"))
 	{
 		printf("method is getQuotaInfo.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 		
 		Parser parser;
 		parser.parseGetQuotaInfo(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -298,12 +328,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "fileUpload"))
 	{
 		printf("method is fileUpload.\n");
-		std::string token, tenant, src, dst, uuid;
+		std::string token, tenant, src, dst;
 		
 		Parser parser;
 		parser.parseFileUpload(token, uuid, src, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -322,12 +353,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "mergeFile"))
 	{
 		printf("method is mergeFile.\n");
-		std::string token, tenant, uuid, dest, postField;
+		std::string token, tenant, dest, postField;
 		
 		Parser parser;
 		parser.parseMergeFile(token, uuid, dest, postField, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -343,12 +375,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "createDir"))
 	{
 		printf("method is createDir.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 		
 		Parser parser;
 		parser.parseCreateDir(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -363,12 +396,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "deleteFileDir"))
 	{
 		printf("method is deleteFileDir.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 		
 		Parser parser;
 		parser.parseDeleteFileDir(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -383,12 +417,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "batchDeleteFileDir"))
 	{
 		printf("method is batchDeleteFileDir.\n");
-		std::string token, tenant, uuid, postField;
+		std::string token, tenant, postField;
 		
 		Parser parser;
 		parser.parseBatchDeleteFileDir(token, uuid, postField, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -404,12 +439,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "moveFileDir"))
 	{
 		printf("method is moveFileDir.\n");
-		std::string token, tenant, src, dst, uuid;
+		std::string token, tenant, src, dst;
 		
 		Parser parser;
 		parser.parseMoveFileDir(token, uuid, src, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -424,12 +460,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "batchMoveFileDir"))
 	{
 		printf("method is batchMoveFileDir.\n");
-		std::string token, tenant, uuid, postField;
+		std::string token, tenant, postField;
 		
 		Parser parser;
 		parser.parseBatchMoveFileDir(token, uuid, postField, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -445,12 +482,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "copyFileDir"))
 	{
 		printf("method is copyFileDir.\n");
-		std::string token, tenant, src, dst, uuid;
+		std::string token, tenant, src, dst;
 		
 		Parser parser;
 		parser.parseCopyFileDir(token, uuid, src, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -465,12 +503,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "batchCopyFileDir"))
 	{
 		printf("method is batchCopyFileDir.\n");
-		std::string token, tenant, postField, uuid;
+		std::string token, tenant, postField;
 		
 		Parser parser;
 		parser.parseBatchCopyFileDir(token, uuid, postField, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -486,12 +525,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "readFile"))
 	{
 		printf("method is readFile.\n");
-		std::string token, tenant, src, dst, uuid;
+		std::string token, tenant, src, dst;
 		
 		Parser parser;
 		parser.parseReadFile(token, uuid, src, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -508,12 +548,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getFileHistory"))
 	{
 		printf("method is getFileHistory.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 		
 		Parser parser;
 		parser.parseGetFileHistory(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -528,12 +569,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getOperateHistory"))
 	{
 		printf("method is getOperateHistory.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 		
 		Parser parser;
 		parser.parseGetOperateHistory(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -548,12 +590,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "deleteOperateHistory"))
 	{
 		printf("method is deleteOperateHistory.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 		
 		Parser parser;
 		parser.parseDeleteOperateHistory(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -568,12 +611,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "createSymbolicLink"))
 	{
 		printf("method is createSymbolicLink.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 		
 		Parser parser;
 		parser.parseCreateSymbolicLink(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -588,12 +632,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "renameFileDir"))
 	{
 		printf("method is renameFileDir.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 		
 		Parser parser;
 		parser.parseRenameFileDir(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -608,12 +653,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getFileAttribute"))
 	{
 		printf("method is getFileAttribute.\n");
-		std::string token, tenant, dst, uuid;
+		std::string token, tenant, dst;
 
 		Parser parser;
 		parser.parseGetFileAttribute(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -628,12 +674,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getRecycleList"))
 	{
 		printf("method is getRecycleList.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 
 		Parser parser;
 		parser.parseGetRecycleList(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -648,12 +695,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "moveRecycle"))
 	{
 		printf("method is moveRecycle.\n");
-		std::string token, tenant, postField, uuid;
+		std::string token, tenant, postField;
 
 		Parser parser;
 		parser.parseMoveRecycle(token, uuid, postField, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -669,12 +717,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "cleanRecycle"))
 	{
 		printf("method is cleanRecycle.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 
 		Parser parser;
 		parser.parseCleanRecycle(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 		
@@ -689,12 +738,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "setPermission"))
 	{
 		printf("method is setPermission.\n");
-		std::string token, tenant, uuid, dst;
+		std::string token, tenant, dst;
 
 		Parser parser;
 		parser.parseSetPermission(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 		
@@ -709,12 +759,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getFileList"))
 	{
 		printf("method is getFileList.\n");
-		std::string token, tenant, uuid, dst;
+		std::string token, tenant, dst;
 
 		Parser parser;
 		parser.parseGetFileList(token, uuid, dst, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -729,12 +780,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "createStorageQuota"))
 	{
 		printf("method is createStorageQuota.\n");
-		std::string token, tenant, uuid, metaQuota;
+		std::string token, tenant, metaQuota;
 
 		Parser parser;
 		parser.parseCreateStorageQuota(token,uuid,metaQuota,strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -749,12 +801,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "userRegister"))
 	{
 		printf("method is userRegister.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 
 		Parser parser;
 		parser.parseUserRegister(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -769,7 +822,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "refreshToken"))
 	{
 		printf("method is refreshToken.\n");
-		std::string token, passwd, email, uuid;
+		std::string token, passwd, email;
 
 		Parser parser;
 		parser.parseRefreshToken(token, passwd, email, uuid, strJson);
@@ -790,12 +843,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "getCloudServVersion"))
 	{
 		printf("method is getCloudServVersion.\n");
-		std::string token, tenant, uuid;
+		std::string token, tenant;
 
 		Parser parser;
 		parser.parseGetCloudServVersion(token, uuid, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
+			recordTask2DB(uuid, strResponse);
 			return false;
 		}
 
@@ -810,7 +864,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "verifyToken"))
 	{
 		printf("method is verifyToken.\n");
-		std::string token, uuid;
+		std::string token;
 
 		Parser parser;
 		parser.parseVerifyToken(token, uuid, strJson);
@@ -825,7 +879,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "networkRegister"))
 	{
 		printf("method is networkRegister.\n");
-		std::string postField, uuid;
+		std::string postField;
 
 		Parser parser;
 		parser.parseNetworkRegister(postField, uuid, strJson);
@@ -842,7 +896,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "netCloudRegister"))
 	{
 		printf("method is netCloudRegister.\n");
-		std::string postField, uuid;
+		std::string postField;
 
 		Parser parser;
 		parser.parseNetCloudRegister(postField, uuid, strJson);
@@ -859,7 +913,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	else if(0 == strcmp(method.c_str(), "validateNetworkAccout"))
 	{
 		printf("method is validateNetworkAccout.\n");
-		std::string token, uuid;
+		std::string token;
 
 		Parser parser;
 		parser.parseValidateNetworkAccout(token, uuid, strJson);
@@ -877,11 +931,12 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		printf("can not match method:[%s] !\n",method.c_str());
 		return false;
 	}
+	// record task status now
+	recordTask2DB(uuid, strResponse);
 
 	return true;
 }
 
-//bool MiddleWare::getUploadTask(std::map<std::string, std::string> &taskMap)
 bool MiddleWare::getUploadTask(std::string &queryStr)
 {
 	if(!m_db->tableExists("upload"))
@@ -890,35 +945,30 @@ bool MiddleWare::getUploadTask(std::string &queryStr)
 		return false;
 	}
 	queryStr.clear();
-	queryStr.append("{");
 
 	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
 	try{
 		q = m_db->execQuery("select * from upload;");
 	}
 	catch(CppSQLite3Exception &e){                                          
 		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
 		return false;
-	} 
+	}
+	pthread_spin_unlock(&m_lock);
+
+	std::map<std::string,std::string> taskMap;
 	while(!q.eof())
 	{
-		//taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),q.fieldValue(1)));
-		queryStr.append("\"");
-		queryStr.append(q.fieldValue(0));
-		queryStr.append("\":\"");
-		queryStr.append(q.fieldValue(1));
-		queryStr.append("|");
-		queryStr.append(q.fieldValue(2));
-		queryStr.append("\",");
+		std::string status = q.fieldValue(1) + std::string("|") + q.fieldValue(2);
+		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),status));
 		q.nextRow();
 	}
-	queryStr.append("}");
+	Parser::genTaskStr(queryStr, taskMap);
 
-	//fprintf(stdout, "query %d lines from table upload.", taskMap.size());
 	return true;
 }
 
-//bool MiddleWare::getDownloadTask(std::map<std::string, std::string> &taskMap)
 bool MiddleWare::getDownloadTask(std::string &queryStr)
 {
 	if(!m_db->tableExists("download"))
@@ -927,31 +977,82 @@ bool MiddleWare::getDownloadTask(std::string &queryStr)
 		return false;
 	}
 	queryStr.clear();
-	queryStr.append("{");
 
 	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
 	try{
 		q = m_db->execQuery("select * from download;");
 	}
 	catch(CppSQLite3Exception &e){                                          
 		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
 		return false;
-	} 
+	}
+	pthread_spin_unlock(&m_lock);
+
+	std::map<std::string,std::string> taskMap;
 	while(!q.eof())
 	{
-		//taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),q.fieldValue(1)));
-		queryStr.append("\"");
-		queryStr.append(q.fieldValue(0));
-		queryStr.append("\":\"");
-		queryStr.append(q.fieldValue(1));
-		queryStr.append("|");
-		queryStr.append(q.fieldValue(2));
-		queryStr.append("\",");
+		std::string status = q.fieldValue(1) + std::string("|") + q.fieldValue(2);
+		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),status));
 		q.nextRow();
 	}
-	queryStr.append("}");
+	Parser::genTaskStr(queryStr, taskMap);
+	
+	return true;
+}
 
-	//fprintf(stdout, "query %d lines from table upload.", taskMap.size());
+bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &response)
+{
+	if(!m_db->tableExists("status"))
+	{
+		fprintf(stdout, "table: status isn't exist\n");
+		return false;
+	}
+	char buf[512+64] = {0};
+	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), response.c_str());
+	pthread_spin_lock(&m_lock);
+	try{
+		m_db->execDML(buf);
+	}
+	catch(CppSQLite3Exception &e){
+		fprintf(stderr, "Throw exception when recordTask2DB.\n");
+		fprintf(stderr, "ErrorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
+	}
+	pthread_spin_unlock(&m_lock);
+
+	return true;
+}
+
+bool MiddleWare::checkTaskStatus(const std::string &uuid, std::string &queryStr)
+{
+	if(!m_db->tableExists("status"))
+	{
+		fprintf(stdout, "table: status isn't exist\n");
+		return false;
+	}
+	char buf[128] = {0};
+	sprintf(buf, "select * from status where id = '%s';", uuid.c_str());
+	queryStr.clear();
+
+	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
+	try{
+		q = m_db->execQuery(buf);
+	}
+	catch(CppSQLite3Exception &e){
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	std::map<std::string,std::string> taskMap;
+	while(!q.eof())
+	{
+		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),q.fieldValue(1)));
+		q.nextRow();
+	}
+	Parser::genTaskStr(queryStr, taskMap);
+
 	return true;
 }
 

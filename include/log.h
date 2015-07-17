@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////
 // Copyright (c) 2015, ShangHai xxxx Inc.
 //
-// FileName: middlewareLog.h
+// FileName: log.h
 //
 // Description:
 //

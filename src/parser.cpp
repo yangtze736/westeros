@@ -22,6 +22,27 @@ Parser::~Parser()
 {
 }
 
+// Static Interface
+bool Parser::genTaskStr(std::string &queryStr, std::map<std::string,std::string> &taskMap)
+{
+	Json::Value root;
+	Json::Value arrayObj;
+	Json::Value item;
+
+	std::map<std::string,std::string>::iterator it = taskMap.begin();
+	for(; it != taskMap.end(); it++)
+	{
+		item["uuid"] = it->first;
+		item["status"] = it->second;
+		arrayObj.append(item);
+	}
+
+	root["list"] = arrayObj;
+	queryStr = root.toStyledString();
+
+	return true;
+}
+
 // Protected Interface
 bool Parser::generateMergeFile(const std::list<FileAttrStruct> &tmpList, std::string &postField)
 {
@@ -38,8 +59,9 @@ bool Parser::generateMergeFile(const std::list<FileAttrStruct> &tmpList, std::st
 		arrayObj.append(item);
 	}
 
-	root["list"] = arrayObj;
-	postField = root.toStyledString();
+	//root["list"] = arrayObj;
+	//postField = root.toStyledString();
+	postField = arrayObj.toStyledString();
 
 	return true;
 }

@@ -64,6 +64,7 @@ class MiddleWare{
 		//bool getUploadTaskByKey(std::string &queryStr);
 		bool getDownloadTask(std::string &queryStr);
 		//bool getDownloadTaskByKey(std::string &queryStr);
+		bool checkTaskStatus(const std::string &uuid, std::string &response);
 
 		bool getVersionInfo(std::string &version, std::string &info);
 		bool data_pipeline(const std::string &method, const std::string &strJson, std::string &strResponse);
@@ -77,12 +78,14 @@ class MiddleWare{
 		bool coverParameter(const std::string &para, const std::string &value, ParameterStruct &paraStruct);
 		bool getTenant(const std::string &token, std::string &tenant, std::string &strResponse);
 		bool test(void);
+		bool recordTask2DB(const std::string &uuid, const std::string &response);
 	
 	private:
 		std::string m_version;
 		std::string m_buildTime;
 
 		CppSQLite3DB *m_db;
+		pthread_spinlock_t m_lock;
 };
 
 #endif //__MIDDLEWARE_H__

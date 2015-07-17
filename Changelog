@@ -1,3 +1,16 @@
+2015-07-16 support check uuid.
+2015-07-16 modify task query interface.
+2015-07-16 modify mergeFile.
+2015-07-15 modify makefile
+2015-07-15 change framework.
+2015-07-15 change framework.
+2015-07-15 typechange so file.
+2015-07-15 change Makefile
+2015-07-15 add shared object file.
+2015-07-15 bug fix, add split func.
+2015-07-14 support compress decompress.
+2015-07-14 chang dst2src when parse.
+2015-07-13 add four interfaces.
 2015-07-07 generate json in url.
 2015-07-06 add metadata when upload.
 2015-07-06 bug fix when https upload.

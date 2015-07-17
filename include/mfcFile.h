@@ -16,6 +16,9 @@
 #include <string>
 #include <list>
 
+typedef unsigned long int uoff_t;
+#define READ_BUFSIZE 4096U
+
 class MfcFile
 {
 	public:
@@ -28,9 +31,10 @@ class MfcFile
 		static bool delFile(const std::string &filePath);
 		static std::string createTmpFile(const std::string &srcFile);
 		static int split(const std::string &srcFile, std::list<std::string> &fileList);
+		static int splitFile(const char *filename, uoff_t s);
+		static int mergeFile(const char *filename);
 
 	private:
-		bool rename_file(const char *src, const char *dst);
 };
 
 #endif

@@ -1,7 +1,7 @@
 ///////////////////////////////////////////////////////////
 // Copyright (c) 2015, ShangHai xxxx Inc.
 //
-// FileName: middlewareLog.cpp
+// FileName: log.cpp
 //
 // Description:
 //
@@ -11,7 +11,7 @@
 //
 ///////////////////////////////////////////////////////////
 
-#include "middlewareLog.h"
+#include "log.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include <sys/types.h>
