@@ -1,5 +1,5 @@
 # C++ Client Makefile
-
+BUILD_LEVEL ?= RELEASE
 
 # if you create new source folder(include cpp) please add to below like
 VPATH = src
@@ -9,7 +9,14 @@ HOME=/usr/local/middleware
 INCLUDE +=\
           -I ./include \
 
-CFLAGS= -g -O2 $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++11
+#CFLAGS= -g -O2 $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++0x
+ifeq ($(strip $(BUILD_LEVEL)), RELEASE)
+	CFLAGS= -g -O2 $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++0x -DRELEASE
+endif
+ifeq ($(strip $(BUILD_LEVEL)), DEBUG)
+	CFLAGS= -g -O0 $(INCLUDE) -gstabs -Wno-write-strings -Werror -fPIC -shared -std=c++0x -DDEBUG
+endif
+
 CC = g++
 
 # if you have new lib need to link, add in below like
@@ -23,12 +30,13 @@ LIB_FLAGS = -fPIC -shared
 # need *.o to generate test_client
 LIB_MIDDLEWARE = libmiddleware.so
 
-LIB_DEP = interface.o versionInfo.o mfcFile.o \
-		  middleware.o generateUrl.o urlhandle.o \
+LIB_DEP = middleware.o interface.o versionInfo.o mfcFile.o \
+		  generateUrl.o urlhandle.o \
 		  baseFunc.o httpClient.o CppSQLite3.o \
 		  parser.o static.o configure.o \
 		  createObject.o readObject.o \
 		  fileUpload.o fileDownload.o \
+		  compress.o trap.o\
 
 all: check $(LIB_MIDDLEWARE) clean
 
@@ -69,6 +77,7 @@ static.o:src/static.cpp include/static.h
 httpClient.o:src/httpClient.cpp include/httpClient.h
 middleware.o:src/middleware.cpp include/middleware.h
 parser.o:src/parser.cpp include/parser.h
+trap.o:src/trap.cpp include/trap.h
 configure.o:src/configure.cpp include/configure.h
 versionInfo.o:src/versionInfo.cpp include/versionInfo.h
 generateUrl.o:src/generateUrl.cpp include/generateUrl.h
@@ -78,3 +87,4 @@ readObject.o:src/readObject.cpp include/readObject.h
 fileUpload.o:src/fileUpload.cpp include/fileUpload.h
 fileDownload.o:src/fileDownload.cpp include/fileDownload.h
 urlhandle.o:src/urlhandle.cpp include/urlhandle.h
+compress.o:src/compress.cpp include/compress.h

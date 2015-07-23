@@ -12,6 +12,7 @@
 ///////////////////////////////////////////////////////////
 
 #include "mfcFile.h"
+#include "trap.h"
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -38,6 +39,24 @@ bool MfcFile::reName(const std::string &oldPath, const std::string &newPath)
 	{
 		return false;
 	}
+
+	return true;
+}
+
+bool MfcFile::moveFile(const std::string &src, const std::string &dst)
+{
+	char buf[256] = {0};
+	sprintf(buf,"mv %s %s",src.c_str(),dst.c_str());
+	int ret = system(buf);
+
+	return true;
+}
+
+bool MfcFile::copyFile(const std::string &src, const std::string &dst)
+{
+	char buf[256] = {0};
+	sprintf(buf,"cp %s %s",src.c_str(),dst.c_str());
+	int ret = system(buf);
 
 	return true;
 }
@@ -73,7 +92,7 @@ int MfcFile::mergeFile(const char *filename)
 
 	len = strlen(filename);
 	if(len < 5 || filename[len - 4] != '.'){
-		fprintf(stdout, "File name must end with .000 or .001\n");
+		fprintf(stderr, "File name must end with .000 or .001\n");
 		return 1;
 	}
 	switch(filename[len - 1]){
@@ -84,7 +103,7 @@ int MfcFile::mergeFile(const char *filename)
 			startnr = 1;
 			break;
 		default:
-			fprintf(stdout, "File name must end with .000 or .001\n");
+			fprintf(stderr, "File name must end with .000 or .001\n");
 			return 1;
 	}
 
@@ -112,17 +131,19 @@ int MfcFile::mergeFile(const char *filename)
 
 		if(stat(split_fname, &buf) == -1){
 			if(filenr == startnr){
-				fprintf(stdout, "Cannot find %s\n", split_fname);
+				fprintf(stderr, "Cannot find %s\n", split_fname);
 				return 1;
 			}
 			else{
-				if(missing_fname == NULL)
+				if(missing_fname == NULL){
+					PR("...strdup...\n");
 					missing_fname = strdup(split_fname);
+				}
 			}
 		}
 		else{
 			if(!S_ISREG(buf.st_mode)){
-				fprintf(stdout, "Cannot find %s\n", split_fname);
+				fprintf(stderr, "Cannot find %s\n", split_fname);
 				return 1;
 			}
 			else{
@@ -137,7 +158,7 @@ int MfcFile::mergeFile(const char *filename)
 	}
 
 	if(stat(merged_fname, &buf) == 0){
-		fprintf(stdout, "%s already exists! Aborting...\n", merged_fname);
+		fprintf(stderr, "%s already exists! Aborting...\n", merged_fname);
 		return 1;
 	}
 
@@ -197,6 +218,7 @@ int MfcFile::mergeFile(const char *filename)
 
 	free(orig_fname), orig_fname = NULL;
 	free(split_fname), split_fname = NULL;
+	free(missing_fname), missing_fname = NULL;
 	free(c_bytes), c_bytes = NULL;
 	fclose(fp_merged);
 	return 0;
@@ -222,7 +244,7 @@ int MfcFile::splitFile(const char *filename, uoff_t s)
 		return 1;
 	}
 	if(!S_ISREG(buf.st_mode)){
-		fprintf(stdout, "%s is not a regular file.\n", filename);
+		fprintf(stderr, "%s is not a regular file.\n", filename);
 		return 1;
 	}
 	orig_size = buf.st_size;
@@ -251,7 +273,7 @@ int MfcFile::splitFile(const char *filename, uoff_t s)
 		pieces++;
 
 	if(pieces > 100){
-		fprintf(stdout, "You will be ending up with over %d files, \
+		fprintf(stderr, "You will be ending up with over %d files, \
 				could choose a bigger output size?.\n", pieces);
 		return 1;
 	}
@@ -268,7 +290,7 @@ int MfcFile::splitFile(const char *filename, uoff_t s)
 		return 1;
 	}
 
-	fprintf(stdout, "Splitting %s into %d pipeces.\n", filename, pieces);
+	PR("Splitting %s into %d pipeces.\n", filename, pieces);
 
 	while(orig_pos < orig_size)
 	{
@@ -300,7 +322,140 @@ int MfcFile::splitFile(const char *filename, uoff_t s)
 			bytes_read = fread(c_byte, 1, allow_read, fp_orig); // how much to read
 			if(bytes_read != allow_read){
 				if(feof(fp_orig))
-					printf("unexpected EOF!...\n");
+					fprintf(stderr, "unexpected EOF!...\n");
+				perror("error while reading input file.\n");
+				fclose(fp_split);
+				fclose(fp_orig);
+				return 1;
+			}
+			len = fwrite(c_byte, 1, bytes_read, fp_split);
+			if(len != bytes_read){
+				perror("error while writing to output file.\n");
+				fclose(fp_split);
+				fclose(fp_orig);
+				return 1;
+			}
+
+			orig_pos += bytes_read;
+			split_pos += bytes_read;
+		}
+
+		bytes_left -= split_size;
+		if(bytes_left < split_size)
+			split_size = bytes_left;
+
+		filenr++;
+		fclose(fp_split);
+	}
+
+	free(c_byte), c_byte = NULL;
+	free(split_fname), split_fname = NULL;
+	fclose(fp_orig);
+
+	return 0;
+}
+
+int MfcFile::splitFile(const char *filename, std::list<std::string> &splitFileList, uoff_t s)
+{
+	FILE *fp_orig, *fp_split;
+	uoff_t orig_pos, orig_size, split_pos, split_size,
+		   bytes_left, piece_bytes;
+	size_t bytes_read, allow_read, len;
+	
+	int filenr, pieces;
+	struct stat buf;
+	char *c_byte, *split_fname;
+
+	orig_pos = orig_size = 0;
+	split_pos = split_size = 0;
+	filenr = 1;
+
+	if(stat(filename, &buf) == -1){
+		perror("cannot stat input file");
+		return 1;
+	}
+	if(!S_ISREG(buf.st_mode)){
+		fprintf(stderr, "%s is not a regular file.\n", filename);
+		return 1;
+	}
+	orig_size = buf.st_size;
+
+	// default split filesize
+	if(s == 0){
+		//s = 500*1024*1024; // 500M
+		s = 300*1024*1024; // 300M
+	}
+	if(s >= orig_size){
+		fprintf(stderr, "splitted filesize >= origin filesize.\n");
+		return 1;
+	}
+
+	fp_orig = fopen(filename, "r");
+	if(fp_orig == NULL){
+		perror("error opening input file.\n");
+		return -1;
+	}
+
+	split_size = s;
+	bytes_left = orig_size;
+
+	pieces = orig_size / split_size;
+	if((orig_size % split_size) > 0)
+		pieces++;
+
+	if(pieces > 100){
+		fprintf(stderr, "You will be ending up with over %d files, \
+				could choose a bigger output size?.\n", pieces);
+		return 1;
+	}
+
+	len = strlen(filename) + 5; // ".001" + null terminator
+	split_fname = (char *)malloc(len * sizeof(char));
+	if(split_fname == NULL){
+		perror("malloc split_fname false.\n");
+		return 1;
+	}
+	c_byte = (char *)malloc(READ_BUFSIZE * sizeof(char));
+	if(c_byte == NULL){
+		perror("malloc c_byte false.\n");
+		return 1;
+	}
+
+	PR("Splitting %s into %d pipeces.\n", filename, pieces);
+
+	while(orig_pos < orig_size)
+	{
+		if(filenr < 10)
+			sprintf(split_fname, "%s.00%d", filename, filenr);
+		else if(filenr < 100)
+			sprintf(split_fname, "%s.0%d", filename, filenr);
+		else
+			sprintf(split_fname, "%s.%d", filename, filenr);
+
+		fp_split = fopen(split_fname, "w");
+		if(fp_split == NULL){
+			perror("cannot create output file.\n");
+			fclose(fp_orig);
+			return 1;
+		}
+		// insert into list
+		splitFileList.push_back(std::string(split_fname));
+		
+		split_pos = 0;
+		bytes_read = 0;
+		allow_read = READ_BUFSIZE;
+
+		while(split_pos < split_size)
+		{
+			piece_bytes = split_size - split_pos; // how much to read
+
+			if(piece_bytes < (uoff_t)allow_read)
+				allow_read = (size_t)piece_bytes;
+
+			bytes_read = fread(c_byte, 1, allow_read, fp_orig); // how much to read
+			if(bytes_read != allow_read){
+				if(feof(fp_orig))
+					fprintf(stderr, "unexpected EOF!...\n");
 				perror("error while reading input file.\n");
 				fclose(fp_split);
 				fclose(fp_orig);
@@ -346,7 +501,7 @@ int MfcFile::split(const std::string &srcFile, std::list<std::string> &fileList)
 	FILE* src_file = fopen(srcFile.c_str(),"rb");
 	if(src_file == NULL)
 	{
-		printf("open %s file error!\n",srcFile.c_str());
+		fprintf(stderr, "open %s file error!\n",srcFile.c_str());
 		return -1;
 	}
 
@@ -363,7 +518,7 @@ int MfcFile::split(const std::string &srcFile, std::list<std::string> &fileList)
 		dst_file = fopen(split_file,"wb");
 		if(dst_file == NULL)
 		{
-			printf("open %s error!\n",split_file);
+			fprintf(stderr, "open %s error!\n",split_file);
 			return -1;
 		}
 		fwrite(data_block,1,file_size,dst_file);
@@ -376,7 +531,7 @@ int MfcFile::split(const std::string &srcFile, std::list<std::string> &fileList)
 	dst_file = fopen(split_file,"wb");
 	if(dst_file == NULL)
 	{
-		printf("open %s error!\n",split_file);
+		fprintf(stderr, "open %s error!\n",split_file);
 		return -1;
 	}
 	fwrite(data_block,1,file_size,dst_file);

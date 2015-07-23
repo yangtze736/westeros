@@ -14,6 +14,8 @@
 #include "static.h"
 #include "fileDownload.h"
 #include "mfcFile.h"
+#include "compress.h"
+#include "trap.h"
 #include <stdlib.h>
 
 FileDownload::FileDownload()
@@ -46,44 +48,105 @@ void FileDownload::initDB(void)
 
 int FileDownload::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal, curl_off_t ulnow)
 {
-  struct myprogress *myp = (struct myprogress *)p;
-  double curtime = 0;
+	struct myprogress *myp = (struct myprogress *)p;
+	double curtime = 0;
 
-  curl_easy_getinfo(myp->curl, CURLINFO_TOTAL_TIME, &curtime);
+	curl_easy_getinfo(myp->curl, CURLINFO_TOTAL_TIME, &curtime);
 
-  if((curtime - myp->lastruntime) >= MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL)
-  {
-    myp->lastruntime = curtime;
-	char buf[128] = {0};
-	sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", dlnow,dltotal,myp->uuid.c_str());
+	if((curtime - myp->lastruntime) >= MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL)
+	{
+		myp->lastruntime = curtime;
+		char buf[128] = {0};
+		sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", (long int)dlnow,(long int)dltotal,myp->uuid.c_str());
 
-	pthread_spin_lock(&myp->lock);
-	try{
-		myp->db->execDML(buf);
+		pthread_spin_lock(&myp->lock);
+		try{
+			myp->db->execDML(buf);
+		}
+		catch(CppSQLite3Exception &e){
+			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		}
+		pthread_spin_unlock(&myp->lock);
+
+		PR("%s", buf);
+		PR("UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+				"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+				"\r\n",
+				ulnow, ultotal, dlnow, dltotal);
 	}
-	catch(CppSQLite3Exception &e){
-		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
-	}
-	pthread_spin_unlock(&myp->lock);
 
-	fprintf(stdout, "%s", buf);
-	fprintf(stdout, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-			"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-			"\r\n",
-			ulnow, ultotal, dlnow, dltotal);
-  }
+	// don't limit file size.
+	if(dlnow > STOP_DOWNLOAD_AFTER_THIS_MANY_BYTES)
+		return 0;
 
-  // don't limit file size.
-  if(dlnow > STOP_DOWNLOAD_AFTER_THIS_MANY_BYTES)
-    return 0;
-
-  return 0;
+	return 0;
 }
 
 /* for libcurl older than 7.32.0 (CURLOPT_PROGRESSFUNCTION) */
 int FileDownload::older_progress(void *p, double dltotal, double dlnow, double ultotal, double ulnow)
 {
-  return xferinfo(p, (curl_off_t)dltotal, (curl_off_t)dlnow, (curl_off_t)ultotal, (curl_off_t)ulnow);
+	return xferinfo(p, (curl_off_t)dltotal, (curl_off_t)dlnow, (curl_off_t)ultotal, (curl_off_t)ulnow);
+}
+
+int FileDownload::handle_mode(const std::string &strFilename, const std::string &token, int flag)
+{
+	// flag == 1    NORMAL        flag == 2    ENCRYPT
+	// flag == 3    COMPRESS      flag == 4    ENCRYPT_COMPRESS
+	if(flag == 1)
+	{
+		PR("fileDownload mode = NORMAL.\n");
+		return 0;
+	}
+	else if(flag == 2)
+	{
+		PR("fileDownload mode = ENCRYPT.\n");
+		std::string decryptFilename = MfcFile::createTmpFile(strFilename);
+		if(!decrypt_filename(token, strFilename, decryptFilename))
+		{
+			fprintf(stderr, "decrypt src file failed.\n");
+			return -1;
+		}
+		MfcFile::delFile(strFilename);
+		MfcFile::reName(decryptFilename, strFilename);
+	}
+	else if(flag == 3)
+	{
+		PR("fileDownload mode = COMPRESS.\n");
+		if(MfcFile::getFileSize(strFilename) < 300*1024*1024){
+			UncompressFile(strFilename.c_str());
+			std::string strUncompressFile = strFilename +".uncomp";
+			MfcFile::moveFile(strUncompressFile, strFilename);
+		}
+		else{
+			//TODO
+		}
+	}
+	else if(flag == 4)
+	{
+		PR("fileDownload begin, mode = ENCRYPT_COMPRESS.\n");
+		if(MfcFile::getFileSize(strFilename) < 300*1024*1024){
+			UncompressFile(strFilename.c_str());
+			std::string strUncompressFile = strFilename +".uncomp";
+			MfcFile::moveFile(strUncompressFile, strFilename);
+			std::string decryptFilename = MfcFile::createTmpFile(strFilename);
+			if(!decrypt_filename(token, strFilename, decryptFilename))
+			{
+				fprintf(stderr, "decrypt src file failed.\n");
+				return -1;
+			}
+			MfcFile::delFile(strFilename);
+			MfcFile::reName(decryptFilename, strFilename);
+		}
+		else{
+			//TODO
+		}
+	}
+	else
+	{
+		fprintf(stderr, "fileUpload begin, check mode error!\n");
+		return -1;
+	}
+	return 0;
 }
 
 int FileDownload::file_download(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag)
@@ -102,20 +165,15 @@ int FileDownload::file_download(const std::string &strFilename, const std::strin
 
 	CURLcode res;  
 	CURL* curl = curl_easy_init();  
-	if(NULL == curl)  
-	{  
+	if(NULL == curl)  {  
 		return CURLE_FAILED_INIT;  
 	}
 
 	struct myprogress prog;
-	prog.lastruntime = 0;
-	prog.curl = curl;
-	prog.db = m_db;
-	prog.lock = m_lock;
-	prog.uuid = uuid;
+	prog.lastruntime = 0;prog.curl = curl;prog.db = m_db;
+	prog.lock = m_lock;prog.uuid = uuid;
 
-	if(m_bDebug)  
-	{  
+	if(m_bDebug){  
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1);  
 		curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, OnDebug);  
 	}
@@ -128,9 +186,8 @@ int FileDownload::file_download(const std::string &strFilename, const std::strin
 
 	//
 	FILE *fp;
-	if((fp = fopen(strFilename.c_str(),"wb")) == NULL)
-	{
-		printf("file open error, file:[%s]\n",strFilename.c_str());
+	if((fp = fopen(strFilename.c_str(),"wb")) == NULL){
+		fprintf(stderr, "file open error, file:[%s]\n",strFilename.c_str());
 		return -1;
 	}
 
@@ -153,26 +210,26 @@ int FileDownload::file_download(const std::string &strFilename, const std::strin
 #endif
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 	// end of progress
-	printf("***************************\n");
+	PR("***************************\n");
 	res = curl_easy_perform(curl);
-	printf("***************************\n");
+	PR("***************************\n");
+
 	// clean up
 	fclose(fp);
 	curl_slist_free_all(slist);
 	curl_easy_cleanup(curl);  
 
-
-	// decrypt file
-	std::string decryptFilename = MfcFile::createTmpFile(strFilename);
-	if(!decrypt_filename(token, strFilename, decryptFilename))
-	{
-		printf("decrypt src file failed.\n");
+	// judge mode, NORMAL|ENCRYPT|COMPRESS|ENCRYPT_COMPRESS
+	if(handle_mode(strFilename, token, flag) < 0){
+		strResponse = "handle fileDownload mode error!";
 		return -1;
 	}
-	//
-	MfcFile::delFile(strFilename);
-	MfcFile::reName(decryptFilename, strFilename);
 
+	// keep response length, fix bug(buffer overflow detected)
+	char resp[512] = {0};
+	snprintf(resp, 511, "%s", strResponse.c_str());
+	strResponse.clear();
+	strResponse = std::string(resp);
 
 	return res;  
 }

@@ -32,17 +32,17 @@ long long get_time()
 
 int main()
 {
-	long long t1 = get_time();
+	//long long t1 = get_time();
 
-	MiddleWare *middleware = new MiddleWare();
+	MiddleWare *middleware = new MiddleWare;
 
-	std::string version, info;
-	middleware->getVersionInfo(version, info);
-	printf(" MiddleWare Version : %s\n MiddleWare Info : %s\n", version.c_str(), info.c_str());
+	//std::string version, info;
+	//middleware->getVersionInfo(version, info);
+	//printf(" MiddleWare Version : %s\n MiddleWare Info : %s\n", version.c_str(), info.c_str());
 
 #if 1
 	std::string upStr, downStr, statusStr;
-	std::string uuid = "20150713111";
+	std::string uuid = "12358002221";
 
 	middleware->getUploadTask(upStr);
 	middleware->getDownloadTask(downStr);
@@ -54,24 +54,24 @@ int main()
 	//exit(0);
 #endif
 
-#if 1
+#if 0
 	std::string method = "networkRegister";
 	std::string jsonStr = "{\"username\":\"messi\",\"password\":\"123456\",\"password_confirmation\":\"123456\",\"email\":\"messi@126.com\",\"name\":\"zhang\",\"uuid\":\"20150713111\"}";
 	std::string responseStr;
 	middleware->data_pipeline(method, jsonStr, responseStr);
 #endif
-#if 0
+#if 1
 	std::string method = "fileUpload";
-	//std::string jsonStr = "{\"uuid\":\"12358002221\",\"X-Auth-Token\":\"xTexuD7XN9oKJPzivigHfXB0kA6VmeVJhVUlkwDo\",\"Source\":\"/home/bran/upload/file_100M.bin\",\"Destination\":\"/normal/file_100M.bin\"}";
-	std::string jsonStr = "{\"uuid\":\"12358002221\",\"X-Auth-Token\":\"xTexuD7XN9oKJPzivigHfXB0kA6VmeVJhVUlkwDo\",\"Source\":\"/home/bran/upload/swift.pdf\",\"Destination\":\"/normal/swift.pdf\"}";
-	std::string responseStr = "?op=CREATE&overwrite=true&type=NORMAL&storetype=USER";
+	//std::string jsonStr = "{\"uuid\":\"12358002221\",\"X-Auth-Token\":\"X16U1SFEW5slPM0oS7ISMUgJjpRtucA2b143hPKk\",\"Source\":\"/home/bran/upload/file_500M\",\"Destination\":\"/normal/file_500M\"}";
+	std::string jsonStr = "{\"uuid\":\"12358002221\",\"X-Auth-Token\":\"Zc707lH42mowSKXEGE1IhcFmgvH9klu5rAqBrtRz\",\"Source\":\"/home/bran/upload/swift.pdf\",\"Destination\":\"/normal/swift.pdf\"}";
+	std::string responseStr = "?op=CREATE&overwrite=true&type=NORMAL&mode=COMPRESS&storetype=USER";
 	middleware->data_pipeline(method, jsonStr, responseStr);
 #endif
 
 #if 0
-	std::string method2 = "fileDownLoad";
-	std::string jsonStr2 = "{\"uuid\":\"12358001\",\"X-Auth-Token\":[{\"access_token\":\"GXgybmes7m1fTd5KTCHrCkcblnJ1TccoV50o9DAz\"}],\"tenant\":\"glfs\",\"source\": [{\"file\": \"/home/bran/download\"}], \"destination\": [{\"path\": \"/normal/file_100M.bin\", \"ftype\": \"f\"}]}";
-	std::string responseStr22 = "?op=OPEN&type=NORMAL";
+	std::string method2 = "readFile";
+	std::string jsonStr2 = "{\"uuid\":\"12358001\",\"X-Auth-Token\":\"Zc707lH42mowSKXEGE1IhcFmgvH9klu5rAqBrtRz\",\"Source\":\"/home/bran/download/swift.pdf\",\"Destination\":\"/normal/swift.pdf\"}";
+	std::string responseStr22 = "?op=OPEN&type=NORMAL&mode=COMPRESS";
 	middleware->data_pipeline(method2, jsonStr2, responseStr22);
 #endif
 
@@ -98,8 +98,8 @@ int main()
 	delete middleware, middleware = NULL;
 
 	// total cost
-	long long t2 = get_time();
-	printf(" Total cost : %lld ms.\n", t2-t1);
+	//long long t2 = get_time();
+	//printf(" Total cost : %lld ms.\n", t2-t1);
 
 	return 0;
 }

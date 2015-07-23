@@ -69,19 +69,19 @@ static int OnDebug(CURL *, curl_infotype itype, char * pData, size_t size, void 
 	}
 	else if(itype == CURLINFO_HEADER_IN)
 	{
-		printf("[HEADER_IN]%s\n", pData);
+		//printf("[HEADER_IN]%s\n", pData);
 	}
 	else if(itype == CURLINFO_HEADER_OUT)
 	{
-		printf("[HEADER_OUT]%s\n", pData);
+		//printf("[HEADER_OUT]%s\n", pData);
 	}
 	else if(itype == CURLINFO_DATA_IN)
 	{
-		printf("[DATA_IN]%s\n", pData);
+		//printf("[DATA_IN]%s\n", pData);
 	}
 	else if(itype == CURLINFO_DATA_OUT)
 	{
-		printf("[DATA_OUT]%s\n", pData);
+		//printf("[DATA_OUT]%s\n", pData);
 	}
 	return 0;
 }

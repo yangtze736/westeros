@@ -14,6 +14,7 @@
 #include "static.h"
 #include "createObject.h"
 #include "mfcFile.h"
+#include "trap.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 
@@ -56,7 +57,7 @@ int CreateObject::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_o
   {
     myp->lastruntime = curtime;
 	char buf[128] = {0};
-	sprintf(buf, "update upload set now = %ld, total= %ld where id = '%s';", ulnow,ultotal,myp->uuid.c_str());
+	sprintf(buf, "update upload set now = %ld, total= %ld where id = '%s';", (long int)ulnow,(long int)ultotal,myp->uuid.c_str());
 
 	pthread_spin_lock(&myp->lock);
 	try{
@@ -67,8 +68,8 @@ int CreateObject::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_o
 	}
 	pthread_spin_unlock(&myp->lock);
 
-	fprintf(stdout, "%s", buf);
-	fprintf(stdout, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+	PR("%s", buf);
+	PR("UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
 			"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
 			"\r\n",
 			ulnow, ultotal, dlnow, dltotal);
@@ -131,7 +132,7 @@ int CreateObject::create_object(const std::string &strFilename, const std::strin
 	std::string encryptFilename = MfcFile::createTmpFile(strFilename);
 	if(!encrypt_filename(token, strFilename, encryptFilename))
 	{
-		printf("encrypt src file failed.\n");
+		fprintf(stderr, "encrypt src file failed.\n");
 		return -1;
 	}
 
@@ -139,7 +140,7 @@ int CreateObject::create_object(const std::string &strFilename, const std::strin
 	FILE *fp;
 	if((fp = fopen(encryptFilename.c_str(),"rb")) == NULL)
 	{
-		printf("file open error. file:[%s]\n", strFilename.c_str());
+		fprintf(stderr, "file open error. file:[%s]\n", strFilename.c_str());
 		return -1;
 	}
 	if(fstat(fileno(fp), &file_info) != 0)
@@ -169,9 +170,9 @@ int CreateObject::create_object(const std::string &strFilename, const std::strin
 #endif
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 	// end of progress
-	printf("***************************\n");
+	PR("***************************\n");
 	res = curl_easy_perform(curl);
-	printf("***************************\n");
+	PR("***************************\n");
 
 	// remove tmp file
 	fclose(fp);

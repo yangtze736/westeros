@@ -16,6 +16,7 @@
 #include "net_tool.h"
 #include "secrypto.h"
 #include "httpClient.h"
+#include "trap.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <curl/curl.h>
@@ -365,7 +366,7 @@ bool HttpClient::encrypt_filename(const std::string &token, const std::string &s
 	char tokenJson[256] = {0};                                                                                   
 	sprintf(tokenJson, "{\"access_token\":\"%s\"}", token.c_str());
 	std::string pResult(tokenJson);
-	printf("Access_token : [%s]\n", pResult.c_str());
+	PR("Access_token : [%s]\n", pResult.c_str());
 
 
 	CSecrypto* sc = new CSecrypto();
@@ -438,7 +439,7 @@ bool HttpClient::decrypt_filename(const std::string &token, const std::string &s
 	char tokenJson[256] = {0};                                                                                   
 	sprintf(tokenJson, "{\"access_token\":\"%s\"}", token.c_str());
 	std::string pResult(tokenJson);
-	printf("Access_token : [%s]\n", pResult.c_str());
+	PR("Access_token : [%s]\n", pResult.c_str());
 
 
 	CSecrypto* sc = new CSecrypto();

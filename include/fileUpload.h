@@ -46,7 +46,7 @@ class FileUpload :public HttpClient{
 
 		void initDB(void);
 		bool handle_clean(const std::string &strFilename, int flag);
-		int  handle_mode(const std::string &strFilename, const std::string &token, int flag, struct stat &file_info, FILE *fp);
+		int  handle_mode(const std::string &strFilename, const std::string &token, int flag, struct stat &file_info, FILE **fp);
 
 	public:
 		virtual int file_upload(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);

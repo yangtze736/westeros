@@ -26,12 +26,14 @@
 #include "fileDownload.h"
 #include "snappy.h"
 #include "compress.h"
+#include "trap.h"
 
 #include <string.h>
 #include <list>
 
 MiddleWare::MiddleWare()
 {
+	PR("MiddleWare::MiddleWare\n");
 	m_version = middleware_version_info;
 	char tmpBuildTime[64] = {0};
 	sprintf(tmpBuildTime, "%s %s", __TIME__, __DATE__);
@@ -54,6 +56,7 @@ MiddleWare::MiddleWare()
 
 MiddleWare::~MiddleWare()
 {
+	PR("MiddleWare::~MiddleWare\n");
 	pthread_spin_destroy(&m_lock);
 }
 
@@ -62,32 +65,32 @@ bool MiddleWare::test(void)
 #if 0
 	// test encode && decode	
 	std::string str1 = "https://1.2.3.4:443/v1/AUTH_messi126com/normal/文 件3?op=CREATE&overwrite=true";
-	printf("str1 %s \n",str1.c_str());std::string str2 = urlEncode(str1);
-	printf("str2 %s \n",str2.c_str());std::string str3 = urlDecode(str2);
-	printf("str3 %s \n",str3.c_str());exit(0);
+	PR("str1 %s \n",str1.c_str());std::string str2 = urlEncode(str1);
+	PR("str2 %s \n",str2.c_str());std::string str3 = urlDecode(str2);
+	PR("str3 %s \n",str3.c_str());exit(0);
 #endif
 #if 0
 	// test compress && decompress
 	std::string ss;for(int i=0;i<1024;i++)ss+="str";ss+="finish!";
 	std::string compress;
 	int compress_len = snappy::Compress(ss.c_str(),ss.length(),&compress);
-	printf("inlen:%d\noutlen:%d\nret:%d\ncompress:\n[%s]\n", \
+	PR("inlen:%d\noutlen:%d\nret:%d\ncompress:\n[%s]\n", \
 			(int)ss.length(),(int)compress.length(),compress_len,compress.c_str());
 	std::string sRecovery;
 	bool b = snappy::Uncompress(compress.c_str(),compress_len,&sRecovery);
-	printf("\nsRecovery.len:%d\nsRecovery:\n[%s]\n",(int)sRecovery.length(),sRecovery.c_str());
+	PR("\nsRecovery.len:%d\nsRecovery:\n[%s]\n",(int)sRecovery.length(),sRecovery.c_str());
 
 	// test compress file && decompress file
-	CompressFile("./test_file");
-	UncompressFile("./test_file.comp");
+	CompressFile("/home/bran/upload/swift.pdf");
+	//UncompressFile("./test_file.comp");
 	exit(0);
 #endif
-#if 1
+#if 0
 	// test split file && merge file
-	//MfcFile::splitFile("./split_file", 0);
+	//MfcFile::splitFile("./split_file");
 	//sleep(10);
-	MfcFile::mergeFile("./split_file.001");
-	exit(0);
+	//MfcFile::mergeFile("./split_file.001");
+	//exit(0);
 #endif
 
 	return true;
@@ -101,7 +104,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	std::string strIpPort;
 	if(!getIpPort(strIpPort))
 	{
-		printf("get ip port from conf failed.\n");
+		fprintf(stderr, "get ip port from conf failed.\n");
 		return false;
 	}
 
@@ -116,14 +119,14 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 	if( 0 == strcmp(method.c_str(), "validate"))
 	{
-		printf("method is validate.\n");
+		PR("method is validate.\n");
 		std::string email, passwd;
 
 		Parser parser;
 		parser.parseValidate(email, passwd, uuid, strJson);
 
 		std::string strUrl = GenerateUrl::genValidate(strIpPort);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		std::string postField;
 		postField.append("{\"password\":\"");postField.append(passwd);
@@ -132,11 +135,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		
 		HttpClient httpClient;
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "containerList"))
 	{
-		printf("method is containerList.\n");
+		PR("method is containerList.\n");
 		std::string token, tenant;
 
 		Parser parser;
@@ -149,15 +152,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genContainerList(strIpPort,version,tenant);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "createContainer"))
 	{
-		printf("method is createContainer.\n");
+		PR("method is createContainer.\n");
 		std::string token, tenant, container;
 
 		Parser parser;
@@ -170,15 +173,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCreateContainer(strIpPort,version,tenant,container);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "deleteContainer"))
 	{
-		printf("method is deleteContainer.\n");
+		PR("method is deleteContainer.\n");
 		std::string token, tenant, container;
 		
 		Parser parser;
@@ -191,15 +194,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genDeleteContainer(strIpPort,version,tenant,container);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.del(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "listContainerObjects"))
 	{
-		printf("method is listContainerObjects.\n");
+		PR("method is listContainerObjects.\n");
 		std::string token, tenant, container;
 		
 		Parser parser;
@@ -212,15 +215,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genListContainerObjects(strIpPort,version,tenant,container,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "createObject"))
 	{
-		printf("method is createObject.\n");
+		PR("method is createObject.\n");
 		std::string token, tenant, localObject, container, objectName;
 		
 		Parser parser;
@@ -233,16 +236,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCreateObject(strIpPort,version,tenant,container,objectName);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient *httpClient = new CreateObject;
 		httpClient->create_object(localObject,uuid,token,urlEncode(strUrl),strResponse);
 		delete httpClient, httpClient = NULL;
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "deleteObject"))
 	{
-		printf("method is deleteObject.\n");
+		PR("method is deleteObject.\n");
 		std::string token, tenant, container, objectName;
 		
 		Parser parser;
@@ -255,15 +258,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genDeleteObject(strIpPort,version,tenant,container,objectName);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.del(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "copyObject"))
 	{
-		printf("method is copyObject.\n");
+		PR("method is copyObject.\n");
 		std::string token, tenant, container, objectName, dest;
 		
 		Parser parser;
@@ -276,15 +279,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCopyObject(strIpPort,version,tenant,container,objectName);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
-		httpClient.copy(token, dest, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		httpClient.copy(token, urlEncode(dest), urlEncode(strUrl), strResponse);
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "readObject"))
 	{
-		printf("method is readObject.\n");
+		PR("method is readObject.\n");
 		std::string token, tenant, localObject, container, objectName;
 		
 		Parser parser;
@@ -297,16 +300,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genReadObject(strIpPort,version,tenant,container,objectName);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient *httpClient = new ReadObject;
 		httpClient->read_object(localObject,uuid,token,urlEncode(strUrl),strResponse);
 		delete httpClient, httpClient = NULL;
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getQuotaInfo"))
 	{
-		printf("method is getQuotaInfo.\n");
+		PR("method is getQuotaInfo.\n");
 		std::string token, tenant;
 		
 		Parser parser;
@@ -319,15 +322,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetQuotaInfo(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "fileUpload"))
 	{
-		printf("method is fileUpload.\n");
+		PR("method is fileUpload.\n");
 		std::string token, tenant, src, dst;
 		
 		Parser parser;
@@ -342,17 +345,17 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		std::string meta = "{\"size\":\"" + toStr(MfcFile::getFileSize(src)) + "\"}";
 		coverParameter("metadata", meta, paraStruct);
 		std::string strUrl = GenerateUrl::genFileUpload(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient *httpClient = new FileUpload;
 		int flag = judgeFlag(paraStruct);
 		httpClient->file_upload(src, uuid, token, urlEncode(strUrl), strResponse, flag);
 		delete httpClient, httpClient = NULL;
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "mergeFile"))
 	{
-		printf("method is mergeFile.\n");
+		PR("method is mergeFile.\n");
 		std::string token, tenant, dest, postField;
 		
 		Parser parser;
@@ -365,16 +368,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genMergeFile(strIpPort,version,tenant,dest,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse, true);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "createDir"))
 	{
-		printf("method is createDir.\n");
+		PR("method is createDir.\n");
 		std::string token, tenant, dst;
 		
 		Parser parser;
@@ -387,15 +390,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCreateDir(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "deleteFileDir"))
 	{
-		printf("method is deleteFileDir.\n");
+		PR("method is deleteFileDir.\n");
 		std::string token, tenant, dst;
 		
 		Parser parser;
@@ -408,15 +411,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genDeleteFileDir(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.del(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "batchDeleteFileDir"))
 	{
-		printf("method is batchDeleteFileDir.\n");
+		PR("method is batchDeleteFileDir.\n");
 		std::string token, tenant, postField;
 		
 		Parser parser;
@@ -429,16 +432,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genBatchDeleteFileDir(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "moveFileDir"))
 	{
-		printf("method is moveFileDir.\n");
+		PR("method is moveFileDir.\n");
 		std::string token, tenant, src, dst;
 		
 		Parser parser;
@@ -451,15 +454,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genMoveFileDir(strIpPort,version,tenant,src,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
-		httpClient.put(token, urlEncode(strUrl), strResponse, dst);
-		printf("Response:\n%s\n",strResponse.c_str());
+		httpClient.put(token, urlEncode(strUrl), strResponse, urlEncode(dst));
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "batchMoveFileDir"))
 	{
-		printf("method is batchMoveFileDir.\n");
+		PR("method is batchMoveFileDir.\n");
 		std::string token, tenant, postField;
 		
 		Parser parser;
@@ -472,16 +475,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genBatchMoveFileDir(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "copyFileDir"))
 	{
-		printf("method is copyFileDir.\n");
+		PR("method is copyFileDir.\n");
 		std::string token, tenant, src, dst;
 		
 		Parser parser;
@@ -494,15 +497,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCopyFileDir(strIpPort,version,tenant,src,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
-		httpClient.put(token, urlEncode(strUrl), strResponse, dst);
-		printf("Response:\n%s\n",strResponse.c_str());
+		httpClient.put(token, urlEncode(strUrl), strResponse, urlEncode(dst));
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "batchCopyFileDir"))
 	{
-		printf("method is batchCopyFileDir.\n");
+		PR("method is batchCopyFileDir.\n");
 		std::string token, tenant, postField;
 		
 		Parser parser;
@@ -515,16 +518,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genBatchCopyFileDir(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "readFile"))
 	{
-		printf("method is readFile.\n");
+		PR("method is readFile.\n");
 		std::string token, tenant, src, dst;
 		
 		Parser parser;
@@ -537,17 +540,17 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genReadFile(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient *httpClient = new FileDownload;
 		int flag = judgeFlag(paraStruct);
 		httpClient->file_download(src, uuid, token, urlEncode(strUrl), strResponse, flag);
 		delete httpClient, httpClient = NULL;
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getFileHistory"))
 	{
-		printf("method is getFileHistory.\n");
+		PR("method is getFileHistory.\n");
 		std::string token, tenant, dst;
 		
 		Parser parser;
@@ -560,15 +563,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetFileHistory(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getOperateHistory"))
 	{
-		printf("method is getOperateHistory.\n");
+		PR("method is getOperateHistory.\n");
 		std::string token, tenant;
 		
 		Parser parser;
@@ -581,15 +584,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetOperateHistory(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "deleteOperateHistory"))
 	{
-		printf("method is deleteOperateHistory.\n");
+		PR("method is deleteOperateHistory.\n");
 		std::string token, tenant;
 		
 		Parser parser;
@@ -602,15 +605,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genDelOperHistory(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "createSymbolicLink"))
 	{
-		printf("method is createSymbolicLink.\n");
+		PR("method is createSymbolicLink.\n");
 		std::string token, tenant, dst;
 		
 		Parser parser;
@@ -623,15 +626,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCreateSymbolicLink(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "renameFileDir"))
 	{
-		printf("method is renameFileDir.\n");
+		PR("method is renameFileDir.\n");
 		std::string token, tenant, dst;
 		
 		Parser parser;
@@ -644,15 +647,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genRenameFileDir(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getFileAttribute"))
 	{
-		printf("method is getFileAttribute.\n");
+		PR("method is getFileAttribute.\n");
 		std::string token, tenant, dst;
 
 		Parser parser;
@@ -665,15 +668,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetFileAttribute(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getRecycleList"))
 	{
-		printf("method is getRecycleList.\n");
+		PR("method is getRecycleList.\n");
 		std::string token, tenant;
 
 		Parser parser;
@@ -686,15 +689,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetRecycleList(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "moveRecycle"))
 	{
-		printf("method is moveRecycle.\n");
+		PR("method is moveRecycle.\n");
 		std::string token, tenant, postField;
 
 		Parser parser;
@@ -707,16 +710,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genMoveRecycle(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "cleanRecycle"))
 	{
-		printf("method is cleanRecycle.\n");
+		PR("method is cleanRecycle.\n");
 		std::string token, tenant;
 
 		Parser parser;
@@ -729,15 +732,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCleanRecycle(strIpPort,version,tenant,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), "", strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "setPermission"))
 	{
-		printf("method is setPermission.\n");
+		PR("method is setPermission.\n");
 		std::string token, tenant, dst;
 
 		Parser parser;
@@ -750,15 +753,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genSetPermission(strIpPort,version,tenant,dst,paraStruct);	
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getFileList"))
 	{
-		printf("method is getFileList.\n");
+		PR("method is getFileList.\n");
 		std::string token, tenant, dst;
 
 		Parser parser;
@@ -771,15 +774,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetFileList(strIpPort,version,tenant,dst,paraStruct);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "createStorageQuota"))
 	{
-		printf("method is createStorageQuota.\n");
+		PR("method is createStorageQuota.\n");
 		std::string token, tenant, metaQuota;
 
 		Parser parser;
@@ -792,15 +795,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genCreateStorageQuota(strIpPort,version,tenant);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.postss(token, metaQuota, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "userRegister"))
 	{
-		printf("method is userRegister.\n");
+		PR("method is userRegister.\n");
 		std::string token, tenant;
 
 		Parser parser;
@@ -813,15 +816,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genUserRegister(strIpPort,version,tenant);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.put(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "refreshToken"))
 	{
-		printf("method is refreshToken.\n");
+		PR("method is refreshToken.\n");
 		std::string token, passwd, email;
 
 		Parser parser;
@@ -829,7 +832,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genRefreshToken(strIpPort,version);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		std::string postField;
 		postField.append("{\"password\":\"");postField.append(passwd);
@@ -838,11 +841,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "getCloudServVersion"))
 	{
-		printf("method is getCloudServVersion.\n");
+		PR("method is getCloudServVersion.\n");
 		std::string token, tenant;
 
 		Parser parser;
@@ -855,30 +858,30 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genGetCloudServVersion(strIpPort,version,tenant);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.get(token, urlEncode(strUrl), strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "verifyToken"))
 	{
-		printf("method is verifyToken.\n");
+		PR("method is verifyToken.\n");
 		std::string token;
 
 		Parser parser;
 		parser.parseVerifyToken(token, uuid, strJson);
 
 		std::string strUrl = GenerateUrl::genVerifyToken(strIpPort);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), "", strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "networkRegister"))
 	{
-		printf("method is networkRegister.\n");
+		PR("method is networkRegister.\n");
 		std::string postField;
 
 		Parser parser;
@@ -886,16 +889,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genNetworkRegister(strIpPort,version);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "netCloudRegister"))
 	{
-		printf("method is netCloudRegister.\n");
+		PR("method is netCloudRegister.\n");
 		std::string postField;
 
 		Parser parser;
@@ -903,16 +906,16 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genNetCloudRegister(strIpPort,version);
-		printf("strUrl = [%s]\n", strUrl.c_str());
-		printf("postField:[%s]\n", postField.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
+		PR("postField:[%s]\n", postField.c_str());
 
 		HttpClient httpClient;
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else if(0 == strcmp(method.c_str(), "validateNetworkAccout"))
 	{
-		printf("method is validateNetworkAccout.\n");
+		PR("method is validateNetworkAccout.\n");
 		std::string token;
 
 		Parser parser;
@@ -920,15 +923,15 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		std::string version("/v1/");
 		std::string strUrl = GenerateUrl::genValNetAccout(strIpPort,version);
-		printf("strUrl = [%s]\n", strUrl.c_str());
+		PR("strUrl = [%s]\n", strUrl.c_str());
 
 		HttpClient httpClient;
 		httpClient.posts(token, urlEncode(strUrl), "", strResponse);
-		printf("Response:\n%s\n",strResponse.c_str());
+		PR("Response:\n%s\n",strResponse.c_str());
 	}
 	else
 	{
-		printf("can not match method:[%s] !\n",method.c_str());
+		fprintf(stderr, "can not match method:[%s] !\n",method.c_str());
 		return false;
 	}
 	// record task status now
@@ -941,7 +944,7 @@ bool MiddleWare::getUploadTask(std::string &queryStr)
 {
 	if(!m_db->tableExists("upload"))
 	{
-		fprintf(stdout, "table: upload isn't exist\n");
+		fprintf(stderr, "table: upload isn't exist\n");
 		return false;
 	}
 	queryStr.clear();
@@ -973,7 +976,7 @@ bool MiddleWare::getDownloadTask(std::string &queryStr)
 {
 	if(!m_db->tableExists("download"))
 	{
-		fprintf(stdout, "table: download isn't exist\n");
+		fprintf(stderr, "table: download isn't exist\n");
 		return false;
 	}
 	queryStr.clear();
@@ -1005,9 +1008,14 @@ bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &respo
 {
 	if(!m_db->tableExists("status"))
 	{
-		fprintf(stdout, "table: status isn't exist\n");
+		fprintf(stderr, "table: status isn't exist\n");
 		return false;
 	}
+
+	// keep response length, fix bug(stack smashing detected)
+	char resp[512] = {0};
+	snprintf(resp, 511, "%s", response.c_str());
+
 	char buf[512+64] = {0};
 	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), response.c_str());
 	pthread_spin_lock(&m_lock);
@@ -1015,8 +1023,7 @@ bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &respo
 		m_db->execDML(buf);
 	}
 	catch(CppSQLite3Exception &e){
-		fprintf(stderr, "Throw exception when recordTask2DB.\n");
-		fprintf(stderr, "ErrorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
+		fprintf(stderr, "Throw exception when recordTask2DB, errorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
 	}
 	pthread_spin_unlock(&m_lock);
 
@@ -1027,7 +1034,7 @@ bool MiddleWare::checkTaskStatus(const std::string &uuid, std::string &queryStr)
 {
 	if(!m_db->tableExists("status"))
 	{
-		fprintf(stdout, "table: status isn't exist\n");
+		fprintf(stderr, "table: status isn't exist\n");
 		return false;
 	}
 	char buf[128] = {0};
@@ -1070,7 +1077,6 @@ bool MiddleWare::getIpPort(std::string &strIpPort)
 	int result = 0;
 	if(cfg->LoadFromFile("./server.cnf", &result) < 0)
 	{
-		//printf("failed to read conf file.\n");
 		return false;
 	}
 	char *serverIp = (char*)cfg->GetValue("server", "ip", NULL);
@@ -1258,31 +1264,31 @@ bool MiddleWare::judgeReturnCode(int ret)
 		case Secrypto_NoError :
 			break;
 		case Error_CommunicationKey :
-			printf("get communication key fail.\n");
+			fprintf(stderr, "get communication key fail.\n");
 			return false;
 			break;
 		case Error_PublicKey :
-			printf("get public key fail.\n");
+			fprintf(stderr, "get public key fail.\n");
 			return false;
 			break;
 		case Error_Expire :
-			printf("the access token provided is expired.\n");
+			fprintf(stderr, "the access token provided is expired.\n");
 			return false;
 			break;
 		case Error_NoJson :
-			printf("no json object could be decoded.\n");
+			fprintf(stderr, "no json object could be decoded.\n");
 			return false;
 			break;
 		case Error_WrongRequest :
-			printf("wrong request.\n");
+			fprintf(stderr, "wrong request.\n");
 			return false;
 			break;
 		case Error_Invalid :
-			printf("invalid access token.\n");
+			fprintf(stderr, "invalid access token.\n");
 			return false;
 			break;
 		default :
-			printf("noknown error number.\n");
+			fprintf(stderr, "noknown error number.\n");
 			return false;
 			break;
 	}
@@ -1291,8 +1297,7 @@ bool MiddleWare::judgeReturnCode(int ret)
 
 int MiddleWare::judgeFlag(ParameterStruct &paraStruct)
 {
-	std::string modeStr;
-	parseFromStr(paraStruct.mode, "mode", modeStr);
+	std::string modeStr = paraStruct.mode;;
 	
 	if(strcasecmp(modeStr.c_str(),"NORMAL") == 0)
 	{

@@ -27,14 +27,21 @@ class MfcFile
 
 	public:
 		static unsigned int getFileSize(const std::string &fileName);
+
 		static bool reName(const std::string &oldPath, const std::string &newPath);
+		static bool moveFile(const std::string &src, const std::string &dst);
+		static bool copyFile(const std::string &src, const std::string &dst);
 		static bool delFile(const std::string &filePath);
-		static std::string createTmpFile(const std::string &srcFile);
+
 		static int split(const std::string &srcFile, std::list<std::string> &fileList);
-		static int splitFile(const char *filename, uoff_t s);
+		static int splitFile(const char *filename, uoff_t s=0);
+		static int splitFile(const char *filename, std::list<std::string> &splitFileList, uoff_t s=0);
 		static int mergeFile(const char *filename);
 
+		static std::string createTmpFile(const std::string &srcFile);
+
 	private:
+
 };
 
 #endif

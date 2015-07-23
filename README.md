@@ -26,6 +26,15 @@ Directory info
 
 
 ``
+Deps
+``
+
+	openssl
+	libcurl
+	sqlite3
+
+
+``
 Build and install(Briefly)
 ``
 

@@ -15,6 +15,7 @@
 #define __COMPRESS_H__
 
 #include "snappy.h"
+#include <iostream>
 
 #define CRASH_UNLESS(condition) \
 	(condition) ? (void)0 : \
@@ -25,7 +26,7 @@
 #define CHECK_EQ(a, b) CRASH_UNLESS((a) == (b))
 #define CHECK(cond) CRASH_UNLESS(cond)
 
-inline char *string_as_array(string *str){
+inline char *string_as_array(std::string *str){
 	return str->empty() ? NULL : &*str->begin();
 }
 
@@ -33,13 +34,13 @@ namespace snappy{
 	class LogMessage {
 		public:
 			LogMessage() { }
-			~LogMessage() { cerr << endl; }
-			LogMessage& operator<<(const std::string& msg){
-				cerr << msg;
+			~LogMessage() { std::cerr << std::endl; }
+			LogMessage& operator<<(const std::string &msg){
+				std::cerr << msg;
 				return *this;
 			}
 			LogMessage& operator<<(int x) {
-				cerr << x;
+				std::cerr << x;
 				return *this;
 			}
 	};
@@ -47,7 +48,7 @@ namespace snappy{
 		public:
 			LogMessageCrash(){ }
 			~LogMessageCrash(){
-				cerr << endl;
+				std::cerr << std::endl;
 				abort();
 			}
 	};
@@ -65,48 +66,8 @@ namespace file{
 			void CheckSuccess(){}
 	};
 
-	DummyStatus GetContents(const string& filename, string *data)
-	{
-		FILE *fp = fopen(filename.c_str(), "rb");
-		if(fp == NULL){
-			perror(filename.c_str());
-			exit(1);
-		}
-
-		data->clear();
-		while(!feof(fp)){
-			char buf[4096];
-			size_t ret = fread(buf, 1, 4096, fp);
-			if(ret == 0 && ferror(fp)){
-				perror("fread");
-				exit(1);
-			}
-			data->append(string(buf, ret));
-		}
-
-		fclose(fp);
-
-		return DummyStatus();
-	}
-
-	DummyStatus SetContents(const string &filename, const string &str)
-	{
-		FILE *fp= fopen(filename.c_str(), "wb");
-		if(fp == NULL){
-			perror(filename.c_str());
-			exit(1);
-		}
-
-		int ret = fwrite(str.data(), str.size(), 1, fp);
-		if(ret != 1){
-			perror("fwrite");
-			exit(1);
-		}
-
-		fclose(fp);
-
-		return DummyStatus();
-	}
+	DummyStatus GetContents(const std::string &filename, std::string *data);
+	DummyStatus SetContents(const std::string &filename, const std::string &str);
 
 } // namespace file
 #if 0
@@ -132,28 +93,28 @@ static bool CheckUncompressedLength(const string& compressed, size_t *ulength)
 
 static void CompressFile(const char *fname)
 {
-	string fullinput;
+	std::string fullinput;
 	CHECK_OK(file::GetContents(fname, &fullinput));
 
-	string compressed;
+	std::string compressed;
 	snappy::Compress(fullinput.data(), fullinput.size(), &compressed);
 
-	CHECK_OK(file::SetContents(string(fname).append(".comp"),compressed));
+	CHECK_OK(file::SetContents(std::string(fname).append(".comp"),compressed));
 }
 
 static void UncompressFile(const char *fname)
 {
-	string fullinput;
+	std::string fullinput;
 	CHECK_OK(file::GetContents(fname, &fullinput));
 
 	//size_t uncompLength;
 	//CHECK(CheckUncompressedLength(fullinput, &uncompLength));
 
-	string uncompressed;
+	std::string uncompressed;
 	//uncompressed.resize(uncompLength);
 	CHECK(snappy::Uncompress(fullinput.data(), fullinput.size(), &uncompressed));
 
-	CHECK_OK(file::SetContents(string(fname).append(".uncomp"),uncompressed));
+	CHECK_OK(file::SetContents(std::string(fname).append(".uncomp"),uncompressed));
 }
 
 #endif //__COMPRESS_H__

@@ -14,6 +14,7 @@
 #include "static.h"
 #include "readObject.h"
 #include "mfcFile.h"
+#include "trap.h"
 #include <stdlib.h>
 
 ReadObject::ReadObject()
@@ -55,7 +56,7 @@ int ReadObject::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off
   {
     myp->lastruntime = curtime;
 	char buf[128] = {0};
-	sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", dlnow,dltotal,myp->uuid.c_str());
+	sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", (long int)dlnow,(long int)dltotal,myp->uuid.c_str());
 
 	pthread_spin_lock(&myp->lock);
 	try{
@@ -66,8 +67,8 @@ int ReadObject::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off
 	}
 	pthread_spin_unlock(&myp->lock);
 
-	fprintf(stdout, "%s", buf);
-	fprintf(stdout, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+	PR("%s", buf);
+	PR("UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
 			"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
 			"\r\n",
 			ulnow, ultotal, dlnow, dltotal);
@@ -130,7 +131,7 @@ int ReadObject::read_object(const std::string &strFilename, const std::string &u
 	FILE *fp;
 	if((fp = fopen(strFilename.c_str(),"wb")) == NULL)
 	{
-		printf("file open error, file:[%s]\n",strFilename.c_str());
+		fprintf(stderr, "file open error, file:[%s]\n",strFilename.c_str());
 		return -1;
 	}
 
@@ -153,9 +154,9 @@ int ReadObject::read_object(const std::string &strFilename, const std::string &u
 #endif
 	curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
 	// end of progress
-	printf("***************************\n");
+	PR("***************************\n");
 	res = curl_easy_perform(curl);
-	printf("***************************\n");
+	PR("***************************\n");
 	// clean up
 	fclose(fp);
 	curl_slist_free_all(slist);
@@ -166,7 +167,7 @@ int ReadObject::read_object(const std::string &strFilename, const std::string &u
 	std::string decryptFilename = MfcFile::createTmpFile(strFilename);
 	if(!decrypt_filename(token, strFilename, decryptFilename))
 	{
-		printf("decrypt src file failed.\n");
+		fprintf(stderr, "decrypt src file failed.\n");
 		return -1;
 	}
 	//

@@ -46,6 +46,7 @@ class FileDownload :public HttpClient{
 				double ultotal, double ulnow);
 
 		void initDB(void);
+		int handle_mode(const std::string &strFilename, const std::string &token, int flag);
 
 	public:
 		virtual int file_download(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
