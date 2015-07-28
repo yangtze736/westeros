@@ -30,12 +30,9 @@ LIB_FLAGS = -fPIC -shared
 # need *.o to generate test_client
 LIB_MIDDLEWARE = libmiddleware.so
 
-LIB_DEP = middleware.o interface.o versionInfo.o mfcFile.o \
-		  generateUrl.o urlhandle.o \
-		  baseFunc.o httpClient.o CppSQLite3.o \
-		  parser.o static.o configure.o \
-		  createObject.o readObject.o \
-		  fileUpload.o fileDownload.o \
+LIB_DEP = interface.o mfcFile.o middleware.o generateUrl.o urlhandle.o \
+		  baseFunc.o httpClient.o CppSQLite3.o parser.o static.o configure.o \
+		  createObject.o readObject.o fileUpload.o fileDownload.o \
 		  compress.o trap.o\
 
 all: check $(LIB_MIDDLEWARE) clean
@@ -79,7 +76,6 @@ middleware.o:src/middleware.cpp include/middleware.h
 parser.o:src/parser.cpp include/parser.h
 trap.o:src/trap.cpp include/trap.h
 configure.o:src/configure.cpp include/configure.h
-versionInfo.o:src/versionInfo.cpp include/versionInfo.h
 generateUrl.o:src/generateUrl.cpp include/generateUrl.h
 CppSQLite3.o:src/CppSQLite3.cpp include/CppSQLite3.h
 createObject.o:src/createObject.cpp include/createObject.h

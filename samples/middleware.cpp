@@ -12,6 +12,8 @@
 ///////////////////////////////////////////////////////////
 
 #include "middleware.h"
+#include "trap.h"
+
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
@@ -36,9 +38,11 @@ int main()
 
 	MiddleWare *middleware = new MiddleWare;
 
-	//std::string version, info;
-	//middleware->getVersionInfo(version, info);
-	//printf(" MiddleWare Version : %s\n MiddleWare Info : %s\n", version.c_str(), info.c_str());
+	std::string version, info;
+	middleware->getVersionInfo(version, info);
+	PR("MiddleWare Version : %s", version.c_str());
+	PR("MiddleWare Info : %s", info.c_str());
+	exit(0);
 
 #if 1
 	std::string upStr, downStr, statusStr;
@@ -47,10 +51,10 @@ int main()
 	middleware->getUploadTask(upStr);
 	middleware->getDownloadTask(downStr);
 	middleware->checkTaskStatus(uuid, statusStr);
-	printf("upload     : %s\n", upStr.c_str()); 
-	printf("download   : %s\n", downStr.c_str());
-	printf("uuid       : %s\n", uuid.c_str());
-	printf("status     : %s\n", statusStr.c_str());
+	PR("upload     : %s\n", upStr.c_str()); 
+	PR("download   : %s\n", downStr.c_str());
+	PR("uuid       : %s\n", uuid.c_str());
+	PR("status     : %s\n", statusStr.c_str());
 	//exit(0);
 #endif
 

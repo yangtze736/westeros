@@ -1,3 +1,20 @@
+2015-07-27 add daemon, test ok.
+2015-07-27 add middleware-tutorial.pdf
+2015-07-27 add tutorial doc.
+2015-07-27 bug fix.
+2015-07-24 del versionInfo.cpp
+2015-07-23 modify makefile
+2015-07-23 bug fix
+2015-07-23 fix typo
+2015-07-23 add BUILD LEVEL
+2015-07-22 support filedownload mode.
+2015-07-21 modify compress structure.
+2015-07-21 bug fix, stack smashing detected.
+2015-07-20 todo
+2015-07-20 modify for compatibility.
+2015-07-17 add split & merge file func.
+2015-07-17 change framwork.
+2015-07-17 modify README
 2015-07-16 support check uuid.
 2015-07-16 modify task query interface.
 2015-07-16 modify mergeFile.

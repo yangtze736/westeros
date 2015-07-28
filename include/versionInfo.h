@@ -13,9 +13,6 @@
 #ifndef __MIDDLEWARE_VERSION_INFO_H__
 #define __MIDDLEWARE_VERSION_INFO_H__
 
-#include <string>
-
-//std::string MIDDLEWARE_VERSION_INFO = "0.0.1.alpha.20150603";
-static const char *middleware_version_info = "0.0.1.alpha.20150603";
+#define MIDDLEWARE_VERSION_STRING "0.0.1.alpha.20150603"
 
 #endif

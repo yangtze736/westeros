@@ -81,7 +81,6 @@ class MiddleWare{
 		bool recordTask2DB(const std::string &uuid, const std::string &response);
 	
 	private:
-		std::string m_version;
 		std::string m_buildTime;
 
 		CppSQLite3DB *m_db;

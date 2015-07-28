@@ -34,7 +34,6 @@
 MiddleWare::MiddleWare()
 {
 	PR("MiddleWare::MiddleWare\n");
-	m_version = middleware_version_info;
 	char tmpBuildTime[64] = {0};
 	sprintf(tmpBuildTime, "%s %s", __TIME__, __DATE__);
 	m_buildTime = tmpBuildTime;
@@ -1016,8 +1015,8 @@ bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &respo
 	char resp[512] = {0};
 	snprintf(resp, 511, "%s", response.c_str());
 
-	char buf[512+64] = {0};
-	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), response.c_str());
+	char buf[64+512+100] = {0};
+	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), resp);
 	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
@@ -1065,7 +1064,7 @@ bool MiddleWare::checkTaskStatus(const std::string &uuid, std::string &queryStr)
 
 bool MiddleWare::getVersionInfo(std::string &version, std::string &info)
 {
-	version = m_version;
+	version = MIDDLEWARE_VERSION_STRING;
 	info = m_buildTime;
 
 	return true;

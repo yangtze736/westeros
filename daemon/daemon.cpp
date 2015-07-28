@@ -11,6 +11,9 @@
 //
 ///////////////////////////////////////////////////////////
 
+#include "trap.h"
+#include "middleware.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -77,21 +80,39 @@ int startup(u_short *port)
 	return httpd;
 }
 
+// Inform the client that a request is replied
+void serv_response(int client)
+{
+	char buf[1024] = {0};
+	sprintf(buf, "HTTP/1.0 200 OK\r\n");
+	send(client, buf, sizeof(buf), 0);
+}
+
 // Parameters: the socket connected to the client
 void *accept_request(void *tclient)
 {
 	int     client = *(int *)tclient;
-	char    buf[1024];
-	int     numchars;
-	char    method[255];
-	char    url[255];
-	char    path[512];
-	size_t  i = 0, j = 0;
-	struct  stat st;
+	char    buf[1024+1] = {0};
+	int     status = recv(client, buf, 1024, 0);
 
-	//TODO TODO TODO
-	//TODO TODO TODO
+	if(status == -1){
+		perror("status");
+	}
+	else if(status == 0){
+		//TODO
+	}
+	else{
+		PR("recv: %s",buf);
+		MiddleWare *middleware = new MiddleWare;
+		std::string responseStr;
+		middleware->data_pipeline("networkRegister", std::string(buf), responseStr);
+		PR("%s\n", responseStr.c_str());
+		delete middleware, middleware = NULL;
+	}
 
+	serv_response(client);
+
+	close(client);
 	return NULL;
 }
 
@@ -161,18 +182,18 @@ void daemonize(const char *cmd){
 }
 
 int main(void){
-	daemonize("middleware");
+	//daemonize("middleware");
 
 	int     client_sock = -1;
 	int     server_sock = -1;
-	u_short port = 0;
+	u_short port = 50276;
 	struct  sockaddr_in client_name;
 	
 	socklen_t client_name_len = sizeof(client_name);
 	pthread_t newthread;
 
 	server_sock = startup(&port);
-	printf("httpd running on port %d\n", port);
+	PR("httpd running on port %d\n", port);
 
 	while(1){
 		client_sock = accept(server_sock, (struct sockaddr *)&client_name, &client_name_len);
