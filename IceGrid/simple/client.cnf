@@ -1,0 +1,7 @@
+[IceGrid]
+# Client listening port 
+IceGrid.Client.Port = 10276
+
+# Server cluster capacity
+IceGrid.Server.Num = 12
+

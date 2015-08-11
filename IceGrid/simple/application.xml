@@ -36,6 +36,13 @@
 		<server-instance template="SimpleServer" index="3"/>
 		<server-instance template="SimpleServer" index="4"/>
 		<server-instance template="SimpleServer" index="5"/>
+		<server-instance template="SimpleServer" index="6"/>
+		<server-instance template="SimpleServer" index="7"/>
+		<server-instance template="SimpleServer" index="8"/>
+		<server-instance template="SimpleServer" index="9"/>
+		<server-instance template="SimpleServer" index="10"/>
+		<server-instance template="SimpleServer" index="11"/>
+		<server-instance template="SimpleServer" index="12"/>
 	</node>
 
   </application>

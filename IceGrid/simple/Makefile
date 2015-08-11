@@ -1,6 +1,6 @@
 # **********************************************************************
 #
-# Copyright (c) 2003-2015 ZeroC, Inc. All rights reserved.
+# Copyright (c) Sari CloudBackup Group, All rights reserved.
 #
 # **********************************************************************
 

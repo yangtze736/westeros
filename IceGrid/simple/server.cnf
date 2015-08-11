@@ -2,5 +2,3 @@
 ip = 10.3.3.236
 port = 443
 
-[version]
-v = v1
