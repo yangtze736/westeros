@@ -20,7 +20,7 @@
 		<property name="Ice.ServerIdleTime" value="60"/>
 		<!--
 		<env>LD_LIBRARY_PATH="/usr/local/middleware/lib"</env>
-		<log path="./log/server.log" property="LogFile"/>
+		<log path="log/SimpleServer-${index}.log" property="LogFile"/>
 		-->
 
         <property name="IceMX.Metrics.Debug.GroupBy" value="id"/>

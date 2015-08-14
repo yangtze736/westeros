@@ -4,37 +4,19 @@
 //
 // **********************************************************************
 
-#include "configure.h"
 
+// < 1 >
+#include <unistd.h>
+#include <cstdlib>
+#include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <thread>
+// < 2 >
 #include <Ice/Ice.h>
 #include <IceGrid/IceGrid.h>
 #include <Datapipeline.h>
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <strings.h>
-#include <fcntl.h>
-#include <signal.h>
-#include <syslog.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/resource.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <ctype.h>
-#include <pthread.h>
-
-#define MAX_LISTEN 200
-
-using namespace std;
 using namespace Demo;
-
-// 
-void *accept_request(void *tclient);
 
 class DatapipelineClient : public Ice::Application
 {
@@ -42,18 +24,109 @@ public:
 
     DatapipelineClient();
     virtual int run(int, char*[]);
-
-private:
-
-	int startup(u_short *port);
 };
 
-int
-main(int argc, char* argv[])
+
+// < 1 >
+// **********************************************
+//
+//  P R O D U C E R  -  C O N S U M E R
+//
+// ********************************************** 
+
+static const int kItemRepositorySize  = 4 + 1; // task capability equal kItemRepositorySize - 1.
+
+struct ItemRepository {
+	size_t read_position;
+	size_t write_position;
+	std::mutex mtx;
+	std::condition_variable repo_not_full;
+	std::condition_variable repo_not_empty;
+} gItemRepository;
+
+typedef struct ItemRepository ItemRepository;
+
+
+void ProduceItem(ItemRepository *ir)
 {
-    DatapipelineClient app;
-    return app.main(argc, argv, "config.client");
+	std::unique_lock<std::mutex> lock(ir->mtx);
+	// item buffer is full, just wait here.
+	while(((ir->write_position + 1) % kItemRepositorySize)
+			== ir->read_position) {
+		std::cout << "Producer is waiting for an empty slot...\n";
+		(ir->repo_not_full).wait(lock);
+	}
+
+	(ir->write_position)++;
+
+	if (ir->write_position == kItemRepositorySize)
+		ir->write_position = 0;
+
+	(ir->repo_not_empty).notify_all();
+	lock.unlock();
 }
+
+void ConsumeItem(ItemRepository *ir)
+{
+	std::unique_lock<std::mutex> lock(ir->mtx);
+	// item buffer is empty, just wait here.
+	while(ir->write_position == ir->read_position) {
+		std::cout << "Consumer is waiting for items...\n";
+		(ir->repo_not_empty).wait(lock);
+	}
+
+	(ir->read_position)++;
+
+	if (ir->read_position >= kItemRepositorySize)
+		ir->read_position = 0;
+
+	(ir->repo_not_full).notify_all();
+	lock.unlock();
+}
+
+void ProducerTask()
+{
+	while(1) {
+		sleep(1);
+		ProduceItem(&gItemRepository);
+
+		std::cout << "Producer a item." << std::endl;
+		sleep(10);
+	}
+	std::cout << "Producer thread " << std::this_thread::get_id()
+		<< " is exiting..." << std::endl;
+}
+
+void ConsumerTask(int argc, char* argv[])
+{
+	while(1) {
+		sleep(1);
+		ConsumeItem(&gItemRepository);
+
+		DatapipelineClient app;
+		//char cli[10][10] = {{'C','L','I','E','N','T','\0'}};
+		//int argcc = 1; char **argvv = (char **)cli;
+		int ret = app.main(argc, argv, "config.client");
+
+		std::cout << "Consumer a item, ret = " << ret  << std::endl;
+	}
+	std::cout << "Consumer thread " << std::this_thread::get_id()
+		<< " is exiting..." << std::endl;
+}
+
+void InitItemRepository(ItemRepository *ir)
+{
+	ir->write_position = 0;
+	ir->read_position = 0;
+}
+
+
+// < 2 >
+// **********************************************
+//
+//  I C E  -  G R I D  
+//
+// ********************************************** 
 
 DatapipelineClient::DatapipelineClient() :
     //
@@ -69,141 +142,81 @@ DatapipelineClient::run(int argc, char* argv[])
 {
     if(argc > 1)
     {
-        cerr << appName() << ": too many arguments" << endl;
+		std::cerr << appName() << ": too many arguments" << std::endl;
+		std::cerr << "execute programming : " << argv[0] << std::endl;
         return EXIT_FAILURE;
     }
 
-    //
-    // First we try to connect to the object with the `datapipeline'
-    // identity. If it's not registered with the registry, we will
-    // search for an object with the ::Demo::Datapipeline type.
-    //
-    DatapipelinePrx datapipeline;
-    try
-    {
-        datapipeline = DatapipelinePrx::checkedCast(communicator()->stringToProxy("datapipeline"));
-    }
-    catch(const Ice::NotRegisteredException&)
-    {
-        IceGrid::QueryPrx query = IceGrid::QueryPrx::checkedCast(communicator()->stringToProxy("DemoIceGrid/Query"));
-        datapipeline = DatapipelinePrx::checkedCast(query->findObjectByType("::Demo::Datapipeline"));
-    }
-    if(!datapipeline)
-    {
-        cerr << argv[0] << ": couldn't find a `::Demo::Datapipeline' object." << endl;
-        return EXIT_FAILURE;
-    }
-
-	// MAIN
+#if 1
+	//
+	// First we try to connect to the object with the `datapipeline'
+	// identity. If it's not registered with the registry, we will
+	// search for an object with the ::Demo::Datapipeline type.
+	//
+	DatapipelinePrx datapipeline;
 	try
 	{
-		int client_sock = -1;
-		int server_sock = -1;
+		datapipeline = DatapipelinePrx::checkedCast(communicator()->stringToProxy("datapipeline"));
+	}
+	catch(const Ice::NotRegisteredException&)
+	{
+		IceGrid::QueryPrx query = IceGrid::QueryPrx::checkedCast(communicator()->stringToProxy("DemoIceGrid/Query"));
+		datapipeline = DatapipelinePrx::checkedCast(query->findObjectByType("::Demo::Datapipeline"));
+	}
+	catch(...)
+	{
+		std::cerr << "unexpected exception" << std::endl;
+	}
+	if(!datapipeline)
+	{
+		std::cerr << ": couldn't find a `::Demo::Datapipeline' object." << std::endl;
+	}
+#endif
 
-		struct sockaddr_in client_name;
-
-		ConfigSet *cfg = new ConfigSet;
-		int result = 0; 
-		if(cfg->LoadFromFile("./client.cnf", &result) < 0){
-			cerr << "couldn't find client.cnf" << endl;
-			return false;
-		}
-		u_short port = cfg->GetIntVal("IceGrid","IceGrid.Client.Port",0);
-
-		socklen_t client_name_len = sizeof(client_name);
-		pthread_t newthread;
-
-		server_sock = startup(&port);
-		cout << "httpd running on port " << port << endl;
-
-		while(1){
-			client_sock = accept(server_sock, (struct sockaddr *)&client_name, &client_name_len);
-			if(client_sock == -1){
-				perror("accept");
-				exit(1);
-			}
-
-			if(pthread_create(&newthread, NULL, accept_request, (void *)&client_sock) != 0)
-				perror("pthread_create");
-		}
-
-		close(server_sock);
-		//string resp = datapipeline->fileTransfer("hello Server.");
-		//cout << resp << endl;
+	try
+	{
+		std::string resp = datapipeline->fileTransfer("hello Server.");
+		std::cout << resp << std::endl;
 	}
 	catch(const Ice::Exception& ex)
 	{
-		cerr << ex << endl;
+		std::cerr << ex << std::endl;
 	}
-	// END
 
 	return EXIT_SUCCESS;
 }
 
+
+// < 3 >
+// **********************************************
 //
-// If the port is 0, then dynamically allocate a
-// port and modify the original port variable to
-// reflect the actual port.
+//  M A I N 
 //
+// ********************************************** 
+
 int
-DatapipelineClient::startup(u_short *port)
+main(int argc, char* argv[])
 {
-	int     httpd = 0;
-	struct  sockaddr_in name;
-	
-	httpd = socket(PF_INET, SOCK_STREAM, 0);
-	if(httpd == -1){
-		perror("socket");
-		exit(1);
-	}
-	memset(&name, 0, sizeof(name));
-	name.sin_family = AF_INET;
-	name.sin_port = htons(*port);
-	name.sin_addr.s_addr = htonl(INADDR_ANY);
+    //DatapipelineClient app;
+    //return app.main(argc, argv, "config.client");
+	InitItemRepository(&gItemRepository);
 
-	if(bind(httpd, (struct sockaddr *)&name, sizeof(name)) < 0){
-		perror("bind");
-		exit(1);
-	}
+	// Init producers and consumers, ugly here @-@! 
+	std::thread t1(ProducerTask);
+	//std::thread t2(ProducerTask);
+	//std::thread t3(ProducerTask);
+	//std::thread t4(ProducerTask);
 
-	// If dynamically allocating a port
-	if(*port == 0){
-		socklen_t namelen  = sizeof(name);
-		if(getsockname(httpd, (struct sockaddr *)&name, &namelen) == -1){
-			perror("getsockname");
-			exit(1);
-		}
-		*port = ntohs(name.sin_port);
-	}
+	std::thread c1(ConsumerTask,argc,argv);
+	//std::thread c2(ConsumerTask);
+	//std::thread c3(ConsumerTask);
+	//std::thread c4(ConsumerTask);
 
-	if(listen(httpd, MAX_LISTEN) < 0){
-		perror("listen");
-		exit(1);
-	}
+	t1.join();    c1.join();
+	//t2.join();    c2.join();
+	//t3.join();    c3.join();
+	//t4.join();    c4.join();
 
-	return httpd;
-}
-
-void*
-accept_request(void *tclient)
-{
-	int     client = *(int *)tclient;
-	char    buf[1024+1] = {0};
-	int     status = recv(client, buf, 1024, 0);
-
-	if(status == -1){
-		perror("status");
-	}
-	else if(status == 0){
-		//TODO
-	}
-	else{
-		//TODO
-	}
-
-	//serv_response(client);
-
-	close(client);
-	return NULL;
+	return 0;
 }
 

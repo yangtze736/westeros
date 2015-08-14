@@ -40,5 +40,12 @@ namespace URL
 
 	void string_utf8_to_gbk(string &out, const string &in);
 	int utf8_to_gbk(char *out, const char *in, int max_len, int len);
+
+	// base64
+	int base64_encode(unsigned char *out, const unsigned char *in, int len, const char *encode_map);
+	int base64_decode(unsigned char *out, const unsigned char *in, int len, const char *decode_index);
+	int Base64Encode(unsigned char *out, const unsigned char *in, int len);
+	int Base64Decode(unsigned char *out, const unsigned char *in, int len);
+
 }
 #endif

@@ -62,7 +62,10 @@ std::string itoa(
 		);
 
 std::string urlEncode(const std::string &strUrl);
-
 std::string urlDecode(const std::string &strUrl);
+
+// base64
+std::string base64Encode(const std::string &str);
+std::string base64Decode(const std::string &str);
 
 #endif

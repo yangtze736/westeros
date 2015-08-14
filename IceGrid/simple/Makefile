@@ -37,4 +37,4 @@ $(SERVER): $(SOBJS)
 
 clean::
 	-rm -rf db/node/* db/registry/*
-	-rm -fr test.db
+	-rm -rf test.db

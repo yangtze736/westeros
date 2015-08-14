@@ -100,3 +100,26 @@ std::string urlDecode(const std::string &strUrl)
 
 	return std::string(buff);
 }
+
+std::string base64Encode(const std::string &str)
+{
+	char in[4*1024] = {0};
+	char out[4*1024] = {0};
+
+	sprintf(in, "%s", str.c_str());
+	URL::Base64Encode((unsigned char *)out, (const unsigned char *)in, strlen(in));
+
+	return std::string(out);
+}
+
+std::string base64Decode(const std::string &str)
+{
+	char in[4*1024] = {0};
+	char out[4*1024] = {0};
+
+	sprintf(in, "%s", str.c_str());
+	URL::Base64Decode((unsigned char *)out, (const unsigned char *)in, strlen(in));
+
+	return std::string(out);
+}
+

@@ -20,14 +20,14 @@ DatapipelineI::fileTransfer(const string& s, const Ice::Current&)
 	// TODO
 	cout << s << endl;
     cout << _name << " says Hello World!" << endl;
-
+#if 0
 	cout << "--- Test Middleware ---" << endl;
 	MiddleWare *middleware = new MiddleWare;
 	string responseStr;
 	middleware->data_pipeline("networkRegister", string("xxxx"), responseStr);
 	cout << "--- End of Middleware ---" << endl;
-
-	//return _name + " says Hello World!";
-	return responseStr;
+#endif
+	return _name + " says Hello World!";
+	//return responseStr;
 }
 

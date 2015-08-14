@@ -33,7 +33,7 @@ LIB_MIDDLEWARE = libmiddleware.so
 LIB_DEP = interface.o mfcFile.o middleware.o generateUrl.o urlhandle.o \
 		  baseFunc.o httpClient.o CppSQLite3.o parser.o static.o configure.o \
 		  createObject.o readObject.o fileUpload.o fileDownload.o \
-		  compress.o trap.o\
+		  compress.o trap.o \
 
 all: check $(LIB_MIDDLEWARE) clean
 

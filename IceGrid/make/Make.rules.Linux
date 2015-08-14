@@ -76,7 +76,7 @@ ifeq ($(CXX),g++)
         endif
     endif
 
-    CXXFLAGS		+= $(CXXARCHFLAGS) -fvisibility=hidden -Wall -Wno-ignored-qualifiers -Werror -Wextra -Wshadow -pthread
+    CXXFLAGS		+= $(CXXARCHFLAGS) -fvisibility=hidden -Wall -Wno-ignored-qualifiers -Werror -Wextra -Wshadow -pthread -std=c++11
 
     GCC_GTEQ_460 := $(shell expr `gcc -dumpversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40600)
     ifeq ($(GCC_GTEQ_460),1)

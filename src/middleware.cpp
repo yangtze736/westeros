@@ -33,7 +33,10 @@
 
 MiddleWare::MiddleWare()
 {
+	// just for test
+	//test();
 	PR("MiddleWare::MiddleWare");
+
 	char tmpBuildTime[64] = {0};
 	sprintf(tmpBuildTime, "%s %s", __TIME__, __DATE__);
 	m_buildTime = tmpBuildTime;
@@ -61,6 +64,14 @@ MiddleWare::~MiddleWare()
 
 bool MiddleWare::test(void)
 {
+#if 0
+	std::string original0 = "https://1.2.3.4:443/测试 BASE64";
+	PR("original0 [%s]", original0.c_str());
+	std::string original1 = base64Encode(original0);
+	PR("original1 [%s]", original1.c_str());
+	std::string original2 = base64Decode(original1);
+	PR("original2 [%s]", original2.c_str());
+#endif
 #if 0
 	// test encode && decode	
 	std::string str1 = "https://1.2.3.4:443/v1/AUTH_messi126com/normal/文 件3?op=CREATE&overwrite=true";
@@ -97,9 +108,6 @@ bool MiddleWare::test(void)
 
 bool MiddleWare::data_pipeline(const std::string &method, const std::string &strJson, std::string &strResponse)
 {
-	// for test
-	test();
-
 	std::string strIpPort;
 	if(!getIpPort(strIpPort))
 	{

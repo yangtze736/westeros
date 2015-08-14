@@ -91,7 +91,7 @@ int main()
 	std::string responseStr = "?op=MOVE&ftype=f&type=NORMAL";
 	middleware->data_pipeline(method, jsonStr, responseStr);
 #endif
-#if 1
+#if 0
 	std::string method = "moveRecycle";
 	std::string  jsonStr = "{\"X-Auth-Token\":\"wSnZdB7spdM2mDQd2JOZnjslrhIltVchEERkFbCd\",\"list\":[{\"ftype\":\"f\",\"path\":\"/new_container2/ufw.log\",\"uuid\":\"yCHNmAYC-8ts2kbYk8A\"],\"uuid\":\"6f0b34c6b947-47fc-8ce0-922d88a77b8f\"}";
 	std::string responseStr = "?op=MOVERECYCLE&type=NORMAL";

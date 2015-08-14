@@ -21,6 +21,33 @@
 namespace URL
 {
 	#define XX 127
+	//Table for base64 encoding
+	static char base64_map[64] = {
+		'A','B','C','D', 'E','F','G','H', 'I','J','K','L', 'M','N','O','P',
+		'Q','R','S','T', 'U','V','W','X', 'Y','Z','a','b', 'c','d','e','f',
+		'g','h','i','j', 'k','l','m','n', 'o','p','q','r', 's','t','u','v',
+		'w','x','y','z', '0','1','2','3', '4','5','6','7', '8','9','+','/',
+	};
+
+	//Table for base64 decoding
+	static char base64_index[256] = {
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,62, XX,XX,XX,63,
+		52,53,54,55, 56,57,58,59, 60,61,XX,XX, XX,XX,XX,XX,
+		XX, 0, 1, 2,  3, 4, 5, 6,  7, 8, 9,10, 11,12,13,14,
+		15,16,17,18, 19,20,21,22, 23,24,25,XX, XX,XX,XX,XX,
+		XX,26,27,28, 29,30,31,32, 33,34,35,36, 37,38,39,40,
+		41,42,43,44, 45,46,47,48, 49,50,51,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+		XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX, XX,XX,XX,XX,
+	};
 
 	// Table for hex to char
 	static char url_hex_map[16] = {
@@ -222,6 +249,112 @@ namespace URL
 		outUrl[pos] = '\0';
 
 		return pos;
+	}
+
+	int base64_decode( unsigned char *out, const unsigned char *in, int len, const char *decode_index )
+	{
+#if 0
+		unsigned char buf[4];
+		int index = 0, ret = 0;
+		while( index < len ) {
+			int remain = ( len - index ) > 4 ? 4 : ( len - index );
+			*( unsigned int *)buf = 0;
+			int count = 0;
+			for( int i = 0; i < 4; ++i ) {
+				*( unsigned int *)buf <<= 6;
+				if( i < remain && decode_index[ in[i+index] ] != 64 && decode_index[ in[i+index] ] != XX ) {
+					*( unsigned int *)buf |= decode_index[ in[ i+index ] ];
+					++count;
+				}
+			}
+			for( int i = 0; i < count-1; ++i )
+				out[ ret + i ] = buf [ 2-i ];
+			index += remain;
+			ret += (count - 1);
+		}	
+		return ret;
+#else
+		int index = 0, ret = 0;
+		while( index < len ) {
+			unsigned char buf[4] = {0};
+			int remain = ( len - index ) > 4 ? 4 : ( len - index );
+			memcpy( buf, in+index, remain );
+			if( decode_index[ buf[0] ] == XX )
+				break;
+			out[ret+0] = decode_index[ buf[0] ] << 2;
+			if( decode_index[ buf[1] ] == XX ) {
+				ret = ret + 1;
+				break;
+			}
+			out[ret+0] = ( decode_index[ buf[1] ] >> 4 ) | out[ret+0];
+			out[ret+1] = decode_index[ buf[1] ] << 4;
+			if( decode_index[ buf[2] ] == XX ) {
+				ret = ret + 2;
+				break;
+			}
+			out[ret+1] = ( decode_index[ buf[2] ] >> 2 ) | out[ret+1];
+			out[ret+2] = decode_index[ buf[2] ] << 6;
+			if( decode_index[ buf[3] ] == XX ) {
+				ret = ret + 3;	
+				break;
+			}
+			out[ret+2] = decode_index[ buf[3] ] | out[ret+2];
+			ret += 3;
+			index += 4;
+		}
+		return ret;
+#endif
+	}
+
+	int base64_encode( unsigned char *out, const unsigned char *in, int len, const char *encode_map )
+	{
+#if 0
+		unsigned char buf[4];
+		int index = 0, ret = 0;
+		while( index < len ) {
+			int remain = len - index > 3 ? 3 : ( len - index );		
+			*(unsigned int *)buf = 0;
+			for( int i = 0; i < remain; ++i )
+				buf[2-i] = in[ index + i];
+			for( int i = 0; i < 4; ++i ) {
+				out[ret+3-i] = encode_map[ *(unsigned int *)buf & 0x0000003f ];
+				*(unsigned int *)buf >>= 6;
+			}
+			for( int i = remain+1; i < 4; ++i )
+				out[ret+i] = '='; 
+			ret += 4;
+			index += remain;
+		}
+		out[ret] = '\0';
+		return ret;
+#else
+		int index = 0, ret = 0;
+		while( index < len ) {
+			unsigned char buf[3] = {0};
+			int remain = len - index > 3 ? 3 : ( len - index );
+			memcpy( buf, in + index, remain ); 
+			out[ret+0] = encode_map[ buf[0] >> 2 ];
+			out[ret+1] = encode_map[ ( buf[0] << 4 ) & 0x30 | ( buf[1] >> 4 ) ];
+			out[ret+2] = encode_map[ ( buf[1] << 2 ) & 0x3C | ( buf[2] >> 6 ) ];
+			out[ret+3] = encode_map[ buf[2] & 0x3F ];
+			for( int i = remain + 1; i < 4; i++ )
+				out[ret+i] = '=';
+			ret += 4;
+			index += remain;
+		}
+		out[ret] = '\0';
+		return ret;
+#endif
+	}
+
+	int Base64Encode( unsigned char *out, const unsigned char *in, int len )
+	{
+		return base64_encode( out, in, len, base64_map );
+	}
+
+	int Base64Decode( unsigned char *out, const unsigned char *in, int len )
+	{
+		return base64_decode( out, in, len, base64_index );
 	}
 
 }
