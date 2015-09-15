@@ -15,6 +15,8 @@
 #include "urlhandle.h"
 #include <string.h>
 
+#define BUFF_SIZE 4*1024
+
 std::string itoa(short i)
 {
 	char buf[256] = {0};
@@ -87,7 +89,7 @@ std::string itoa(
 
 std::string urlEncode(const std::string &strUrl)
 {
-	char buff[512] = {0};
+	char buff[BUFF_SIZE] = {0};
 	URL::UrlEncode(buff, strUrl.c_str(), sizeof(buff));
 
 	return std::string(buff);
@@ -95,7 +97,7 @@ std::string urlEncode(const std::string &strUrl)
 
 std::string urlDecode(const std::string &strUrl)
 {
-	char buff[512] = {0};
+	char buff[BUFF_SIZE] = {0};
 	URL::UrlDecode(buff, strUrl.c_str(), sizeof(buff));
 
 	return std::string(buff);
@@ -103,8 +105,8 @@ std::string urlDecode(const std::string &strUrl)
 
 std::string base64Encode(const std::string &str)
 {
-	char in[4*1024] = {0};
-	char out[4*1024] = {0};
+	char in[BUFF_SIZE] = {0};
+	char out[BUFF_SIZE] = {0};
 
 	sprintf(in, "%s", str.c_str());
 	URL::Base64Encode((unsigned char *)out, (const unsigned char *)in, strlen(in));
@@ -114,8 +116,8 @@ std::string base64Encode(const std::string &str)
 
 std::string base64Decode(const std::string &str)
 {
-	char in[4*1024] = {0};
-	char out[4*1024] = {0};
+	char in[BUFF_SIZE] = {0};
+	char out[BUFF_SIZE] = {0};
 
 	sprintf(in, "%s", str.c_str());
 	URL::Base64Decode((unsigned char *)out, (const unsigned char *)in, strlen(in));

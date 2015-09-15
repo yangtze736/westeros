@@ -49,7 +49,7 @@ namespace snappy{
 			LogMessageCrash(){ }
 			~LogMessageCrash(){
 				std::cerr << std::endl;
-				abort();
+				//abort();
 			}
 	};
 	class LogMessageVoidify {
@@ -93,28 +93,36 @@ static bool CheckUncompressedLength(const string& compressed, size_t *ulength)
 
 static void CompressFile(const char *fname)
 {
-	std::string fullinput;
-	CHECK_OK(file::GetContents(fname, &fullinput));
+	try{
+		std::string fullinput;
+		CHECK_OK(file::GetContents(fname, &fullinput));
 
-	std::string compressed;
-	snappy::Compress(fullinput.data(), fullinput.size(), &compressed);
+		std::string compressed;
+		snappy::Compress(fullinput.data(), fullinput.size(), &compressed);
 
-	CHECK_OK(file::SetContents(std::string(fname).append(".comp"),compressed));
+		CHECK_OK(file::SetContents(std::string(fname).append(".comp"),compressed));
+	}catch(...){
+		fprintf(stderr, "throw exception, when compress file\n");
+	}
 }
 
 static void UncompressFile(const char *fname)
 {
-	std::string fullinput;
-	CHECK_OK(file::GetContents(fname, &fullinput));
+	try{
+		std::string fullinput;
+		CHECK_OK(file::GetContents(fname, &fullinput));
 
-	//size_t uncompLength;
-	//CHECK(CheckUncompressedLength(fullinput, &uncompLength));
+		//size_t uncompLength;
+		//CHECK(CheckUncompressedLength(fullinput, &uncompLength));
 
-	std::string uncompressed;
-	//uncompressed.resize(uncompLength);
-	CHECK(snappy::Uncompress(fullinput.data(), fullinput.size(), &uncompressed));
+		std::string uncompressed;
+		//uncompressed.resize(uncompLength);
+		CHECK(snappy::Uncompress(fullinput.data(), fullinput.size(), &uncompressed));
 
-	CHECK_OK(file::SetContents(std::string(fname).append(".uncomp"),uncompressed));
+		CHECK_OK(file::SetContents(std::string(fname).append(".uncomp"),uncompressed));
+	}catch(...){
+		fprintf(stderr, "throw exception, when uncompress file\n");
+	}
 }
 
 #endif //__COMPRESS_H__

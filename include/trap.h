@@ -17,8 +17,12 @@
 #include <stdio.h>
 #include <pthread.h>
 
+// TODO
 #ifdef RELEASE
-#define PR(fmt, args...)
+#define PR_LOG(fmt, args...) \
+	do{ \
+	}while(0)
+#define PR(fmt, args...) PR_LOG(fmt, ##args)
 #endif
 
 #ifdef DEBUG

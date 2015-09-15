@@ -47,7 +47,7 @@ class CreateObject :public HttpClient{
 		void initDB(void);
 
 	public:
-		virtual int create_object(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse);
+		virtual int create_object(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse);
 
 	private:
 		CppSQLite3DB *m_db;

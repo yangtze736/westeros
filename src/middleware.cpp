@@ -15,7 +15,6 @@
 #include "httpClient.h"
 #include "parser.h"
 #include "middleware.h"
-#include "versionInfo.h"
 #include "baseFunc.h"
 #include "mfcFile.h"
 #include "generateUrl.h"
@@ -31,18 +30,62 @@
 #include <string.h>
 #include <list>
 
-MiddleWare::MiddleWare()
+
+//////////////////////////////////////////////////////
+////        Conf Application
+
+bool ConfApplication::setIpPort(char *conf)
 {
-	// just for test
-	//test();
-	PR("MiddleWare::MiddleWare");
+	PR("ConfApplication::setIpPort");
+	ConfigSet *cfg = new ConfigSet;
+	int result = 0;
+	if(cfg->LoadFromFile(conf, &result) < 0)
+	{
+		PR("get ip port from conf failed.");
+		exit(0);
+	}
+	char *serverIp = (char*)cfg->GetValue("server", "ip", NULL);
+	int port = cfg->GetIntVal("server", "port", 0);
+	char ch[128] = {0};
+	sprintf(ch, "%s:%d", serverIp, port);
+	m_strIpPort = ch;
+	
+	delete cfg, cfg = NULL;
+	return true;
+}
 
-	char tmpBuildTime[64] = {0};
-	sprintf(tmpBuildTime, "%s %s", __TIME__, __DATE__);
-	m_buildTime = tmpBuildTime;
+std::string ConfApplication::getIpPort()
+{
+	return m_strIpPort;
+}
 
+
+//////////////////////////////////////////////////////
+////        Boot Application
+
+Boot *Boot::m_instance = NULL;
+ConfApplication *Boot::g_conf = NULL;
+
+Boot::Boot()
+{
+	PR("Boot::Boot");
+
+	if(m_instance == NULL){
+		m_instance = this;
+	}else{
+		PR("Boot can be instantiated for one and only one time!");
+		exit(0);
+	}
+	g_conf = new ConfApplication(DEFAULT_CONF_FILE);
 	m_db = new CppSQLite3DB;
-	m_db->open("./test.db");
+	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+
+	try{
+		m_db->open(DEFAULT_DB_FILE);
+	}catch(CppSQLite3Exception &e){
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());;
+	}
+#ifdef CloudSDK
 	if(!m_db->tableExists("status"))
 	{
 		try{
@@ -52,68 +95,54 @@ MiddleWare::MiddleWare()
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
 		}
 	}
+#endif
+}
 
-	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+Boot::~Boot()
+{
+	PR("Boot::~Boot");
+
+	m_instance = NULL;
+	m_db->close();
+	delete m_db, m_db = NULL;
+	pthread_spin_destroy(&m_lock);	
+}
+
+
+//////////////////////////////////////////////////////
+////        main program
+
+MiddleWare::MiddleWare()
+	:m_strIpPort(g_conf->getIpPort())
+{
+	PR("MiddleWare::MiddleWare");
+
+#ifdef TEST
+	test();
+	exit(0);
+#endif
+#ifdef CloudSDK
+	PR("TEST #ifdef CloudSDK");
+#endif
+#ifdef CloudPy
+	PR("TEST #ifdef CloudPy");
+#endif
+	PR("MiddleWare::getInstance() address: %p", MiddleWare::getInstance());
+	PR("MiddleWare::getInstance()->m_db address: %p", MiddleWare::getInstance()->m_db);
+	PR("MiddleWare::getInstance()->m_lock address: %p", MiddleWare::getInstance()->m_lock);
+	PR("m_db address: %p", m_db);
+	PR("m_lock address: %p", m_lock);
 }
 
 MiddleWare::~MiddleWare()
 {
 	PR("MiddleWare::~MiddleWare");
-	pthread_spin_destroy(&m_lock);
 }
 
-bool MiddleWare::test(void)
-{
-#if 0
-	std::string original0 = "https://1.2.3.4:443/测试 BASE64";
-	PR("original0 [%s]", original0.c_str());
-	std::string original1 = base64Encode(original0);
-	PR("original1 [%s]", original1.c_str());
-	std::string original2 = base64Decode(original1);
-	PR("original2 [%s]", original2.c_str());
-#endif
-#if 0
-	// test encode && decode	
-	std::string str1 = "https://1.2.3.4:443/v1/AUTH_messi126com/normal/文 件3?op=CREATE&overwrite=true";
-	PR("str1 [%s]",str1.c_str());std::string str2 = urlEncode(str1);
-	PR("str2 [%s]",str2.c_str());std::string str3 = urlDecode(str2);
-	PR("str3 [%s]",str3.c_str());exit(0);
-#endif
-#if 0
-	// test compress && decompress
-	std::string ss;for(int i=0;i<1024;i++)ss+="str";ss+="finish!";
-	std::string compress;
-	int compress_len = snappy::Compress(ss.c_str(),ss.length(),&compress);
-	PR("inlen:%d\noutlen:%d\nret:%d\ncompress:\n[%s]", \
-			(int)ss.length(),(int)compress.length(),compress_len,compress.c_str());
-	std::string sRecovery;
-	bool b = snappy::Uncompress(compress.c_str(),compress_len,&sRecovery);
-	PR("\nsRecovery.len:%d\nsRecovery:\n[%s]",(int)sRecovery.length(),sRecovery.c_str());
-
-	// test compress file && decompress file
-	CompressFile("/home/bran/upload/swift.pdf");
-	//UncompressFile("./test_file.comp");
-	exit(0);
-#endif
-#if 0
-	// test split file && merge file
-	//MfcFile::splitFile("./split_file");
-	//sleep(10);
-	//MfcFile::mergeFile("./split_file.001");
-	//exit(0);
-#endif
-
-	return true;
-}
 
 bool MiddleWare::data_pipeline(const std::string &method, const std::string &strJson, std::string &strResponse)
 {
-	std::string strIpPort;
-	if(!getIpPort(strIpPort))
-	{
-		fprintf(stderr, "get ip port from conf failed.\n");
-		return false;
-	}
+	std::string strIpPort = m_strIpPort;
 
 	// parser parameter from strResponse string.
 	ParameterStruct paraStruct;
@@ -125,7 +154,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	// record task status when finish
 	std::string uuid;
 
-	if( 0 == strcmp(method.c_str(), "validate"))
+	if( "validate" == method )
 	{
 		PR("method is validate.");
 		std::string email, passwd;
@@ -145,7 +174,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "containerList"))
+	else if( "containerList" == method )
 	{
 		PR("method is containerList.");
 		std::string token, tenant;
@@ -166,7 +195,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "createContainer"))
+	else if( "createContainer" == method )
 	{
 		PR("method is createContainer.");
 		std::string token, tenant, container;
@@ -187,7 +216,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "deleteContainer"))
+	else if( "deleteContainer" == method )
 	{
 		PR("method is deleteContainer.");
 		std::string token, tenant, container;
@@ -208,7 +237,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.del(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "listContainerObjects"))
+	else if( "listContainerObjects" == method )
 	{
 		PR("method is listContainerObjects.");
 		std::string token, tenant, container;
@@ -229,13 +258,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "createObject"))
+	else if( "createObject" == method )
 	{
 		PR("method is createObject.");
-		std::string token, tenant, localObject, container, objectName;
+		std::string token, user, tenant, localObject, container, objectName;
 		
 		Parser parser;
-		parser.parseCreateObject(token, uuid, localObject, container, objectName, strJson);
+		parser.parseCreateObject(token, user, uuid, localObject, container, objectName, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
 			recordTask2DB(uuid, strResponse);
@@ -247,11 +276,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		PR("strUrl = [%s]", strUrl.c_str());
 
 		HttpClient *httpClient = new CreateObject;
-		httpClient->create_object(localObject,uuid,token,urlEncode(strUrl),strResponse);
+		httpClient->create_object(localObject,uuid,user,token,urlEncode(strUrl),strResponse);
 		delete httpClient, httpClient = NULL;
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "deleteObject"))
+	else if( "deleteObject" == method )
 	{
 		PR("method is deleteObject.");
 		std::string token, tenant, container, objectName;
@@ -272,7 +301,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.del(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "copyObject"))
+	else if( "copyObject" == method )
 	{
 		PR("method is copyObject.");
 		std::string token, tenant, container, objectName, dest;
@@ -293,13 +322,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.copy(token, urlEncode(dest), urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "readObject"))
+	else if( "readObject" == method )
 	{
 		PR("method is readObject.");
-		std::string token, tenant, localObject, container, objectName;
+		std::string token, user, tenant, localObject, container, objectName;
 		
 		Parser parser;
-		parser.parseReadObject(token, uuid, localObject, container, objectName, strJson);
+		parser.parseReadObject(token, user, uuid, localObject, container, objectName, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
 			recordTask2DB(uuid, strResponse);
@@ -311,11 +340,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		PR("strUrl = [%s]", strUrl.c_str());
 
 		HttpClient *httpClient = new ReadObject;
-		httpClient->read_object(localObject,uuid,token,urlEncode(strUrl),strResponse);
+		httpClient->read_object(localObject,uuid,user,token,urlEncode(strUrl),strResponse);
 		delete httpClient, httpClient = NULL;
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getQuotaInfo"))
+	else if( "getQuotaInfo" == method )
 	{
 		PR("method is getQuotaInfo.");
 		std::string token, tenant;
@@ -336,13 +365,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "fileUpload"))
+	else if( "fileUpload" == method )
 	{
 		PR("method is fileUpload.");
-		std::string token, tenant, src, dst, time;
+		std::string token, tenant, src, dst, time, user;
 		
 		Parser parser;
-		parser.parseFileUpload(token, uuid, src, dst, time, strJson);
+		parser.parseFileUpload(token, uuid, src, dst, time, user, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
 			recordTask2DB(uuid, strResponse);
@@ -359,11 +388,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		HttpClient *httpClient = new FileUpload;
 		int flag = judgeFlag(paraStruct);
-		httpClient->file_upload(src, uuid, token, urlEncode(strUrl), strResponse, flag);
+		httpClient->file_upload(src, user, uuid, token, urlEncode(strUrl), strResponse, flag);
 		delete httpClient, httpClient = NULL;
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "mergeFile"))
+	else if( "mergeFile" == method )
 	{
 		PR("method is mergeFile.");
 		std::string token, tenant, dest, flag, postField;
@@ -387,7 +416,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient._posts(token, urlEncode(strUrl), postField, strResponse, flag);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "createDir"))
+	else if( "createDir" == method )
 	{
 		PR("method is createDir.");
 		std::string token, tenant, dst;
@@ -408,7 +437,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "deleteFileDir"))
+	else if( "deleteFileDir" == method )
 	{
 		PR("method is deleteFileDir.");
 		std::string token, tenant, dst;
@@ -429,7 +458,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.del(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "batchDeleteFileDir"))
+	else if( "batchDeleteFileDir" == method )
 	{
 		PR("method is batchDeleteFileDir.");
 		std::string token, tenant, postField;
@@ -451,7 +480,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "moveFileDir"))
+	else if( "moveFileDir" == method )
 	{
 		PR("method is moveFileDir.");
 		std::string token, tenant, src, dst;
@@ -472,7 +501,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse, urlEncode(dst));
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "batchMoveFileDir"))
+	else if( "batchMoveFileDir" == method )
 	{
 		PR("method is batchMoveFileDir.");
 		std::string token, tenant, postField;
@@ -494,7 +523,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "copyFileDir"))
+	else if( "copyFileDir" == method )
 	{
 		PR("method is copyFileDir.");
 		std::string token, tenant, src, dst;
@@ -515,7 +544,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse, urlEncode(dst));
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "batchCopyFileDir"))
+	else if( "batchCopyFileDir" == method )
 	{
 		PR("method is batchCopyFileDir.");
 		std::string token, tenant, postField;
@@ -537,13 +566,13 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "readFile"))
+	else if( "readFile" == method )
 	{
 		PR("method is readFile.");
-		std::string token, tenant, src, dst;
+		std::string token, tenant, src, dst, user;
 		
 		Parser parser;
-		parser.parseReadFile(token, uuid, src, dst, strJson);
+		parser.parseReadFile(token, uuid, src, dst, user, strJson);
 		if(!getTenant(token, tenant, strResponse))
 		{
 			recordTask2DB(uuid, strResponse);
@@ -556,11 +585,11 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 
 		HttpClient *httpClient = new FileDownload;
 		int flag = judgeFlag(paraStruct);
-		httpClient->file_download(src, uuid, token, urlEncode(strUrl), strResponse, flag);
+		httpClient->file_download(src, uuid, user, token, urlEncode(strUrl), strResponse, flag);
 		delete httpClient, httpClient = NULL;
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getFileHistory"))
+	else if( "getFileHistory" == method )
 	{
 		PR("method is getFileHistory.");
 		std::string token, tenant, dst;
@@ -581,7 +610,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getOperateHistory"))
+	else if( "getOperateHistory" == method )
 	{
 		PR("method is getOperateHistory.");
 		std::string token, tenant;
@@ -602,7 +631,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "deleteOperateHistory"))
+	else if( "deleteOperateHistory" == method )
 	{
 		PR("method is deleteOperateHistory.");
 		std::string token, tenant;
@@ -623,7 +652,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "createSymbolicLink"))
+	else if( "createSymbolicLink" == method )
 	{
 		PR("method is createSymbolicLink.");
 		std::string token, tenant, dst;
@@ -644,7 +673,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "renameFileDir"))
+	else if( "renameFileDir" == method )
 	{
 		PR("method is renameFileDir.");
 		std::string token, tenant, dst;
@@ -665,7 +694,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getFileAttribute"))
+	else if( "getFileAttribute" == method )
 	{
 		PR("method is getFileAttribute.");
 		std::string token, tenant, dst;
@@ -686,7 +715,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getRecycleList"))
+	else if( "getRecycleList" == method )
 	{
 		PR("method is getRecycleList.");
 		std::string token, tenant;
@@ -707,7 +736,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "moveRecycle"))
+	else if( "moveRecycle" == method )
 	{
 		PR("method is moveRecycle.");
 		std::string token, tenant, postField;
@@ -729,7 +758,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "cleanRecycle"))
+	else if( "cleanRecycle" == method )
 	{
 		PR("method is cleanRecycle.");
 		std::string token, tenant;
@@ -750,7 +779,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), "", strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "setPermission"))
+	else if( "setPermission" == method )
 	{
 		PR("method is setPermission.");
 		std::string token, tenant, dst;
@@ -771,7 +800,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getFileList"))
+	else if( "getFileList" == method )
 	{
 		PR("method is getFileList.");
 		std::string token, tenant, dst;
@@ -792,7 +821,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "createStorageQuota"))
+	else if( "createStorageQuota" == method )
 	{
 		PR("method is createStorageQuota.");
 		std::string token, tenant, metaQuota;
@@ -813,7 +842,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.postss(token, metaQuota, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "userRegister"))
+	else if( "userRegister" == method )
 	{
 		PR("method is userRegister.");
 		std::string token, tenant;
@@ -834,7 +863,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.put(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "refreshToken"))
+	else if( "refreshToken" == method )
 	{
 		PR("method is refreshToken.");
 		std::string token, passwd, email;
@@ -855,7 +884,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "getCloudServVersion"))
+	else if( "getCloudServVersion" == method )
 	{
 		PR("method is getCloudServVersion.");
 		std::string token, tenant;
@@ -876,7 +905,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.get(token, urlEncode(strUrl), strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "verifyToken"))
+	else if( "verifyToken" == method )
 	{
 		PR("method is verifyToken.");
 		std::string token;
@@ -891,7 +920,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.posts(token, urlEncode(strUrl), "", strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "networkRegister"))
+	else if( "networkRegister" == method )
 	{
 		PR("method is networkRegister.");
 		std::string postField;
@@ -908,7 +937,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "netCloudRegister"))
+	else if( "netCloudRegister" == method )
 	{
 		PR("method is netCloudRegister.");
 		std::string postField;
@@ -925,7 +954,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 		httpClient.post(urlEncode(strUrl), postField, strResponse);
 		PR("Response:\n%s",strResponse.c_str());
 	}
-	else if(0 == strcmp(method.c_str(), "validateNetworkAccout"))
+	else if( "validateNetworkAccout" == method )
 	{
 		PR("method is validateNetworkAccout.");
 		std::string token;
@@ -952,7 +981,7 @@ bool MiddleWare::data_pipeline(const std::string &method, const std::string &str
 	return true;
 }
 
-bool MiddleWare::getUploadTask(std::string &queryStr)
+bool MiddleWare::getUploadTask(const std::string &userName, std::string &queryStr)
 {
 	if(!m_db->tableExists("upload"))
 	{
@@ -960,11 +989,13 @@ bool MiddleWare::getUploadTask(std::string &queryStr)
 		return false;
 	}
 	queryStr.clear();
+	char buf[128] = {0};
+	sprintf(buf, "select * from upload where user = '%s';",userName.c_str());
 
 	CppSQLite3Query q;
 	pthread_spin_lock(&m_lock);
 	try{
-		q = m_db->execQuery("select * from upload;");
+		q = m_db->execQuery(buf);
 	}
 	catch(CppSQLite3Exception &e){                                          
 		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
@@ -975,8 +1006,8 @@ bool MiddleWare::getUploadTask(std::string &queryStr)
 	std::map<std::string,std::string> taskMap;
 	while(!q.eof())
 	{
-		std::string status = q.fieldValue(1) + std::string("|") + q.fieldValue(2);
-		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),status));
+		std::string status = q.fieldValue(3) + std::string("|") + q.fieldValue(4);
+		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(2),status));
 		q.nextRow();
 	}
 	Parser::genTaskStr(queryStr, taskMap);
@@ -984,7 +1015,7 @@ bool MiddleWare::getUploadTask(std::string &queryStr)
 	return true;
 }
 
-bool MiddleWare::getDownloadTask(std::string &queryStr)
+bool MiddleWare::getDownloadTask(const std::string &userName, std::string &queryStr)
 {
 	if(!m_db->tableExists("download"))
 	{
@@ -992,11 +1023,13 @@ bool MiddleWare::getDownloadTask(std::string &queryStr)
 		return false;
 	}
 	queryStr.clear();
+	char buf[128] = {0};
+	sprintf(buf, "select * from download where user = '%s';",userName.c_str());
 
 	CppSQLite3Query q;
 	pthread_spin_lock(&m_lock);
 	try{
-		q = m_db->execQuery("select * from download;");
+		q = m_db->execQuery(buf);
 	}
 	catch(CppSQLite3Exception &e){                                          
 		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
@@ -1007,8 +1040,8 @@ bool MiddleWare::getDownloadTask(std::string &queryStr)
 	std::map<std::string,std::string> taskMap;
 	while(!q.eof())
 	{
-		std::string status = q.fieldValue(1) + std::string("|") + q.fieldValue(2);
-		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(0),status));
+		std::string status = q.fieldValue(3) + std::string("|") + q.fieldValue(4);
+		taskMap.insert(std::map<std::string,std::string>::value_type(q.fieldValue(2),status));
 		q.nextRow();
 	}
 	Parser::genTaskStr(queryStr, taskMap);
@@ -1016,8 +1049,141 @@ bool MiddleWare::getDownloadTask(std::string &queryStr)
 	return true;
 }
 
+bool MiddleWare::cleanByUserKey(const std::string &userName, const std::string &fileName)
+{
+	char buf1[512] = {0};
+	sprintf(buf1, "delete from upload where user = '%s' and file = '%s';", userName.c_str(), fileName.c_str());
+	char buf2[512] = {0};
+	sprintf(buf2, "delete from download where user = '%s' and file = '%s';", userName.c_str(), fileName.c_str());
+
+	// < 1 >
+	if(!m_db->tableExists("upload"))
+	{
+		fprintf(stderr, "table: upload isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query p;
+	pthread_spin_lock(&m_lock);
+	try{
+		p = m_db->execQuery(buf1);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	// < 2 >
+	if(!m_db->tableExists("download"))
+	{
+		fprintf(stderr, "table: download isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
+	try{
+		q = m_db->execQuery(buf2);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	return true;
+}
+
+bool MiddleWare::cleanByUser(const std::string &userName)
+{
+	char buf1[128] = {0};
+	sprintf(buf1, "delete from upload where user = '%s' and total=now;", userName.c_str());
+	char buf2[128] = {0};
+	sprintf(buf2, "delete from download where user = '%s' and total=now;", userName.c_str());
+
+	// < 1 >
+	if(!m_db->tableExists("upload"))
+	{
+		fprintf(stderr, "table: upload isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query p;
+	pthread_spin_lock(&m_lock);
+	try{
+		p = m_db->execQuery(buf1);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	// < 2 >
+	if(!m_db->tableExists("download"))
+	{
+		fprintf(stderr, "table: download isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
+	try{
+		q = m_db->execQuery(buf2);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	return true;
+}
+
+bool MiddleWare::cleanAllByUser(const std::string &userName)
+{
+	char buf1[128] = {0};
+	sprintf(buf1, "delete from upload where user = '%s';", userName.c_str());
+	char buf2[128] = {0};
+	sprintf(buf2, "delete from download where user = '%s';", userName.c_str());
+
+	// < 1 >
+	if(!m_db->tableExists("upload"))
+	{
+		fprintf(stderr, "table: upload isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query p;
+	pthread_spin_lock(&m_lock);
+	try{
+		p = m_db->execQuery(buf1);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	// < 2 >
+	if(!m_db->tableExists("download"))
+	{
+		fprintf(stderr, "table: download isn't exist\n");
+		return false;
+	}
+	CppSQLite3Query q;
+	pthread_spin_lock(&m_lock);
+	try{
+		q = m_db->execQuery(buf2);
+	}
+	catch(CppSQLite3Exception &e){                                          
+		fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		return false;
+	}
+	pthread_spin_unlock(&m_lock);
+
+	return true;
+}
+
 bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &response)
 {
+#ifdef CloudSDK
 	if(!m_db->tableExists("status"))
 	{
 		fprintf(stderr, "table: status isn't exist\n");
@@ -1025,25 +1191,26 @@ bool MiddleWare::recordTask2DB(const std::string &uuid, const std::string &respo
 	}
 
 	// keep response length, fix bug(stack smashing detected)
-	char resp[512] = {0};
-	snprintf(resp, 511, "%s", response.c_str());
+	std::string resp = keepRespLength(response);
 
 	char buf[64+512+100] = {0};
-	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), resp);
+	sprintf(buf, "insert into status values ('%s', '%s');", uuid.c_str(), resp.c_str());
 	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
 	}
 	catch(CppSQLite3Exception &e){
-		fprintf(stderr, "Throw exception when recordTask2DB, errorNo: %d , %s.\n", e.errorCode(), e.errorMessage());
+		fprintf(stderr, "Throw exception when recordTask2DB, errorNo: %d , %s.\n", \
+				e.errorCode(), e.errorMessage());
 	}
 	pthread_spin_unlock(&m_lock);
-
+#endif
 	return true;
 }
 
 bool MiddleWare::checkTaskStatus(const std::string &uuid, std::string &queryStr)
 {
+#ifdef CloudSDK
 	if(!m_db->tableExists("status"))
 	{
 		fprintf(stderr, "table: status isn't exist\n");
@@ -1071,33 +1238,7 @@ bool MiddleWare::checkTaskStatus(const std::string &uuid, std::string &queryStr)
 		q.nextRow();
 	}
 	Parser::genTaskStr(queryStr, taskMap);
-
-	return true;
-}
-
-bool MiddleWare::getVersionInfo(std::string &version, std::string &info)
-{
-	version = MIDDLEWARE_VERSION_STRING;
-	info = m_buildTime;
-
-	return true;
-}
-
-bool MiddleWare::getIpPort(std::string &strIpPort)
-{
-	ConfigSet *cfg = new ConfigSet;
-	int result = 0;
-	if(cfg->LoadFromFile("./server.cnf", &result) < 0)
-	{
-		return false;
-	}
-	char *serverIp = (char*)cfg->GetValue("server", "ip", NULL);
-	int port = cfg->GetIntVal("server", "port", 0);
-	char ch[128] = {0};
-	sprintf(ch, "%s:%d", serverIp, port);
-	strIpPort = ch;
-	
-	delete cfg, cfg = NULL;
+#endif
 	return true;
 }
 
@@ -1255,9 +1396,11 @@ bool MiddleWare::getTenant(const std::string &token, std::string &tenant, std::s
 	string tokenString(tokenJson);
 
 	int ret = sc->convert_ukey2_cloudtoken(tokenString, output);
-	if(!judgeReturnCode(ret))
+	std::string errMsg;
+	if(!judgeReturnCode(ret, errMsg))
 	{
-		strResponse = "{\"errorNum\":\"" + toStr(ret) + "\"}";
+		strResponse = "{\"status\":\"" + toStr(ret) + "\",\"errMsg\":\"" \
+					   + errMsg + "\"}";
 		delete sc, sc = NULL;
 		return false;
 	}
@@ -1269,38 +1412,38 @@ bool MiddleWare::getTenant(const std::string &token, std::string &tenant, std::s
 	return true;
 }
 
-bool MiddleWare::judgeReturnCode(int ret)
+bool MiddleWare::judgeReturnCode(int ret, std::string &errMsg)
 {
 	switch(ret)
 	{
 		case Secrypto_NoError :
 			break;
 		case Error_CommunicationKey :
-			fprintf(stderr, "get communication key fail.\n");
+			errMsg = "get communication key fail.";
 			return false;
 			break;
 		case Error_PublicKey :
-			fprintf(stderr, "get public key fail.\n");
+			errMsg = "get public key fail.";
 			return false;
 			break;
 		case Error_Expire :
-			fprintf(stderr, "the access token provided is expired.\n");
+			errMsg = "the access token provided is expired.";
 			return false;
 			break;
 		case Error_NoJson :
-			fprintf(stderr, "no json object could be decoded.\n");
+			errMsg = "no json object could be decoded.";
 			return false;
 			break;
 		case Error_WrongRequest :
-			fprintf(stderr, "wrong request.\n");
+			errMsg = "wrong request.";
 			return false;
 			break;
 		case Error_Invalid :
-			fprintf(stderr, "invalid access token.\n");
+			errMsg = "invalid access token.";
 			return false;
 			break;
 		default :
-			fprintf(stderr, "noknown error number.\n");
+			errMsg = "unknown error number.";
 			return false;
 			break;
 	}
@@ -1331,4 +1474,61 @@ int MiddleWare::judgeFlag(ParameterStruct &paraStruct)
 	{
 		return -1; //error
 	}
+}
+
+bool MiddleWare::test(void)
+{
+	std::string original0 = "https://1.2.3.4:443/测试 BASE64";
+	PR("original0 [%s]", original0.c_str());
+	std::string original1 = base64Encode(original0);
+	PR("original1 [%s]", original1.c_str());
+	std::string original2 = base64Decode(original1);
+	PR("original2 [%s]", original2.c_str());
+
+	// test encode && decode	
+	std::string str1 = "https://1.2.3.4:443/v1/AUTH_messi126com/normal/文 件3?op=CREATE&overwrite=true";
+	PR("str1 [%s]",str1.c_str());std::string str2 = urlEncode(str1);
+	PR("str2 [%s]",str2.c_str());std::string str3 = urlDecode(str2);
+	PR("str3 [%s]",str3.c_str());
+
+	// test compress && decompress
+	std::string ss;for(int i=0;i<1024;i++)ss+="str";ss+="finish!";
+	std::string compress;
+	int compress_len = snappy::Compress(ss.c_str(),ss.length(),&compress);
+	PR("inlen:%d\noutlen:%d\nret:%d\ncompress:\n[%s]", \
+			(int)ss.length(),(int)compress.length(),compress_len,compress.c_str());
+	std::string sRecovery;
+	bool b = snappy::Uncompress(compress.c_str(),compress_len,&sRecovery);
+	PR("\nsRecovery.len:%d\nsRecovery:\n[%s]",(int)sRecovery.length(),sRecovery.c_str());
+
+	// test compress file && decompress file
+	CompressFile("/home/bran/upload/swift.pdf");
+	UncompressFile("/home/bran/upload/swift.pdf.comp");
+
+	// test split file && merge file
+	//MfcFile::splitFile("./split_file");
+	//sleep(10);
+	//MfcFile::mergeFile("./split_file.001");
+
+	return true;
+}
+
+std::string MiddleWare::keepRespLength(const std::string &responseStr)
+{
+	std::string ret;
+
+	if(responseStr.length() >= 512){
+		PR("respStr's length is bigger than 512, cut off.");
+
+		std::string status, msg;
+		Parser parser;
+		parser.judgeRespJson(responseStr, status, msg);
+		ret = "{\"status\":\"" + toStr(status) + "\",\"Msg\":\"" \
+			   + msg + "\"}";
+	}
+	else{
+		ret = responseStr;
+	}
+	
+	return ret;
 }

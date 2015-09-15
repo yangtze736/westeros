@@ -20,12 +20,14 @@ using namespace std;
 
 //define error no
 #define Secrypto_NoError        0 // return correct
-#define Error_CommunicationKey -1 // get communication key fail
-#define Error_PublicKey 	   -2 // get public key fail
-#define Error_Expire           -3 // The access token provided is expired
-#define Error_NoJson           -4 // No JSON object could be decoded
-#define Error_WrongRequest     -5 // wrong request
-#define Error_Invalid          -6 // invalid access token
+
+#define Secrypto_ErrorBase      13000
+#define Error_CommunicationKey  (Secrypto_ErrorBase + 1) // get communication key fail
+#define Error_PublicKey 	    (Secrypto_ErrorBase + 2) // get public key fail
+#define Error_Expire            (Secrypto_ErrorBase + 3) // The access token provided is expired
+#define Error_NoJson            (Secrypto_ErrorBase + 4) // No JSON object could be decoded
+#define Error_WrongRequest      (Secrypto_ErrorBase + 5) // wrong request
+#define Error_Invalid           (Secrypto_ErrorBase + 6) // invalid access token
 
 typedef enum{
 	AESType_128 = 128,
@@ -74,10 +76,10 @@ public:
     int sAES_set_decrypt_key(string& token, string &keyobj);
 
 	static void load_padlock(void){
-		OpenSSL_add_all_ciphers();
-		ENGINE_load_builtin_engines();
-		ENGINE_register_all_ciphers();
-		OPENSSL_config(NULL);
+	//	OpenSSL_add_all_ciphers();
+	//	ENGINE_load_builtin_engines();
+	//	ENGINE_register_all_ciphers();
+	//	OPENSSL_config(NULL);
 	}
 
 protected:

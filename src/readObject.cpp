@@ -11,6 +11,7 @@
 //
 ///////////////////////////////////////////////////////////
 
+#include "middleware.h"
 #include "static.h"
 #include "readObject.h"
 #include "mfcFile.h"
@@ -19,24 +20,26 @@
 
 ReadObject::ReadObject()
 {
-	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	//pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	m_lock = MiddleWare::getInstance()->m_lock;
 	initDB();
 }
 
 ReadObject::~ReadObject()
 {
-	pthread_spin_destroy(&m_lock);
+	//pthread_spin_destroy(&m_lock);
 }
 
 void ReadObject::initDB(void)
 {
-	m_db = new CppSQLite3DB;
-	m_db->open("./test.db");
+	//m_db = new CppSQLite3DB;
+	m_db = MiddleWare::getInstance()->m_db;
+	//m_db->open(DEFAULT_DB_FILE);
 	if(!m_db->tableExists("download"))
 	{
 		pthread_spin_lock(&m_lock);
 		try{
-			m_db->execDML("create table download(id char(64) primary key, total int, now int);");
+			m_db->execDML("create table download(id char(64) primary key, user char(32), file char(128), total int, now int);");
 		}
 		catch(CppSQLite3Exception &e){
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
@@ -55,7 +58,7 @@ int ReadObject::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off
   if((curtime - myp->lastruntime) >= MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL)
   {
     myp->lastruntime = curtime;
-	char buf[128] = {0};
+	char buf[256] = {0};
 	sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", (long int)dlnow,(long int)dltotal,myp->uuid.c_str());
 
 	pthread_spin_lock(&myp->lock);
@@ -87,11 +90,11 @@ int ReadObject::older_progress(void *p, double dltotal, double dlnow, double ult
   return xferinfo(p, (curl_off_t)dltotal, (curl_off_t)dlnow, (curl_off_t)ultotal, (curl_off_t)ulnow);
 }
 
-int ReadObject::read_object(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse)
+int ReadObject::read_object(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse)
 {
 	// insert data
-	char buf[128] = {0};
-	sprintf(buf, "insert into download values ('%s', 0, 0);",uuid.c_str());
+	char buf[256] = {0};
+	sprintf(buf, "insert into download values ('%s', '%s', '%s', 0, 0);",uuid.c_str(),user.c_str(),strFilename.c_str());
 	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
@@ -162,7 +165,6 @@ int ReadObject::read_object(const std::string &strFilename, const std::string &u
 	curl_slist_free_all(slist);
 	curl_easy_cleanup(curl);  
 
-
 	// decrypt file
 	std::string decryptFilename = MfcFile::createTmpFile(strFilename);
 	if(!decrypt_filename(token, strFilename, decryptFilename))
@@ -174,6 +176,20 @@ int ReadObject::read_object(const std::string &strFilename, const std::string &u
 	MfcFile::delFile(strFilename);
 	MfcFile::reName(decryptFilename, strFilename);
 
+	// capture filedownload result.
+	if(res == CURLE_OK){
+		char buff[256] = {0};
+		long int total = (long int)MfcFile::getFileSize(strFilename);
+		long int now = total;
+		sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", now, total, uuid.c_str());
+		pthread_spin_lock(&m_lock);
+		try{
+			m_db->execDML(buf);
+		}catch(CppSQLite3Exception &e){
+			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		}
+		pthread_spin_unlock(&m_lock);
+	}
 
 	return res;  
 }

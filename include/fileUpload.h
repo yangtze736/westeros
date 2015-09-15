@@ -49,7 +49,7 @@ class FileUpload :public HttpClient{
 		int  handle_mode(const std::string &strFilename, const std::string &token, int flag, struct stat &file_info, FILE **fp);
 
 	public:
-		virtual int file_upload(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
+		virtual int file_upload(const std::string &strFilename, const std::string &user, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
 
 	private:
 		//SqliteWrap *m_sqliteWrap;

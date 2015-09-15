@@ -39,25 +39,27 @@ bool MfcFile::reName(const std::string &oldPath, const std::string &newPath)
 	{
 		return false;
 	}
-
+	chmod(newPath.c_str() , 0666);
 	return true;
 }
 
 bool MfcFile::moveFile(const std::string &src, const std::string &dst)
 {
-	char buf[256] = {0};
+	char buf[1024] = {0};
 	sprintf(buf,"mv %s %s",src.c_str(),dst.c_str());
 	int ret = system(buf);
-
+	
+	chmod(dst.c_str() , 0666);
 	return true;
 }
 
 bool MfcFile::copyFile(const std::string &src, const std::string &dst)
 {
-	char buf[256] = {0};
+	char buf[1024] = {0};
 	sprintf(buf,"cp %s %s",src.c_str(),dst.c_str());
 	int ret = system(buf);
 
+	chmod(dst.c_str() , 0666);
 	return true;
 }
 
@@ -71,8 +73,8 @@ bool MfcFile::delFile(const std::string &filePath)
 	return true;
 }
 
-/* we create tmp file like this: */
-/* /usr/tmp/demo.cpp --> /usr/tmp/.demo.cpp */
+// We create tmp file like this:
+// /usr/tmp/demo.cpp --> /usr/tmp/.demo.cpp
 std::string MfcFile::createTmpFile(const std::string &srcFile)
 {
 	std::string::size_type found = srcFile.find_last_of("/");
@@ -221,6 +223,8 @@ int MfcFile::mergeFile(const char *filename)
 	free(missing_fname), missing_fname = NULL;
 	free(c_bytes), c_bytes = NULL;
 	fclose(fp_merged);
+	chmod(split_fname , 0666);
+	
 	return 0;
 }
 

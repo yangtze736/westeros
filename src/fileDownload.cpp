@@ -11,33 +11,40 @@
 //
 ///////////////////////////////////////////////////////////
 
+#include "middleware.h"
 #include "static.h"
 #include "fileDownload.h"
 #include "mfcFile.h"
 #include "compress.h"
 #include "trap.h"
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
+
 
 FileDownload::FileDownload()
 {
-	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	//pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	m_lock = MiddleWare::getInstance()->m_lock;
 	initDB();
 }
 
 FileDownload::~FileDownload()
 {
-	pthread_spin_destroy(&m_lock);
+	//pthread_spin_destroy(&m_lock);
 }
 
 void FileDownload::initDB(void)
 {
-	m_db = new CppSQLite3DB;
-	m_db->open("./test.db");
+	//m_db = new CppSQLite3DB;
+	m_db = MiddleWare::getInstance()->m_db;
+	//m_db->open(DEFAULT_DB_FILE);
 	if(!m_db->tableExists("download"))
 	{
 		pthread_spin_lock(&m_lock);
 		try{
-			m_db->execDML("create table download(id char(64) primary key, total int, now int);");
+			m_db->execDML("create table download(id char(64) primary key, user char(32), file char(128), total int, now int);");
 		}
 		catch(CppSQLite3Exception &e){
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
@@ -56,7 +63,7 @@ int FileDownload::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_o
 	if((curtime - myp->lastruntime) >= MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL)
 	{
 		myp->lastruntime = curtime;
-		char buf[128] = {0};
+		char buf[256] = {0};
 		sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", (long int)dlnow,(long int)dltotal,myp->uuid.c_str());
 
 		pthread_spin_lock(&myp->lock);
@@ -149,11 +156,11 @@ int FileDownload::handle_mode(const std::string &strFilename, const std::string 
 	return 0;
 }
 
-int FileDownload::file_download(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag)
+int FileDownload::file_download(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag)
 {
 	// insert data
-	char buf[128] = {0};
-	sprintf(buf, "insert into download values ('%s', 0, 0);",uuid.c_str());
+	char buf[1024] = {0};
+	sprintf(buf, "insert into download values ('%s', '%s', '%s', 0, 0);",uuid.c_str(),user.c_str(),strFilename.c_str());
 	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
@@ -219,17 +226,28 @@ int FileDownload::file_download(const std::string &strFilename, const std::strin
 	curl_slist_free_all(slist);
 	curl_easy_cleanup(curl);  
 
+	chmod(strFilename.c_str(), 0666);
+
 	// judge mode, NORMAL|ENCRYPT|COMPRESS|ENCRYPT_COMPRESS
 	if(handle_mode(strFilename, token, flag) < 0){
-		strResponse = "handle fileDownload mode error!";
+		strResponse = "{\"status\":15003,\"errMsg\":\"handle fileDownload mode error\"}";
 		return -1;
 	}
 
-	// keep response length, fix bug(buffer overflow detected)
-	char resp[512] = {0};
-	snprintf(resp, 511, "%s", strResponse.c_str());
-	strResponse.clear();
-	strResponse = std::string(resp);
+	// capture filedownload result.
+	if(res == CURLE_OK){
+		char buff[256] = {0};
+		long int total = (long int)MfcFile::getFileSize(strFilename);
+		long int now = total;
+		sprintf(buf, "update download set now = %ld, total= %ld where id = '%s';", now, total, uuid.c_str());
+		pthread_spin_lock(&m_lock);
+		try{
+			m_db->execDML(buf);
+		}catch(CppSQLite3Exception &e){
+			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		}
+		pthread_spin_unlock(&m_lock);
+	}
 
 	return res;  
 }

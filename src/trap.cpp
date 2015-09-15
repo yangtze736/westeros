@@ -84,9 +84,9 @@ int Logger::do_printlog(const char *filename, int linenum, const char *funcname,
 
 	// need bigger buf for more info
 	char buf[10*1024];
-	int len = snprintf(buf, sizeof(buf), "[%04d%02d%02d %02d:%02d:%02d.%06d] [%s:%d:%s] [%s] %s\n",
+	int len = snprintf(buf, sizeof(buf), "[%04d%02d%02d %02d:%02d:%02d] [%s:%d:%s] [%s] %s\n",
 			mytm.tm_year + 1900, mytm.tm_mon + 1, mytm.tm_mday, mytm.tm_hour, mytm.tm_min, mytm.tm_sec,
-			(int)tv.tv_usec, my_filename, linenum, my_funcname, "DEBUG", message );
+			my_filename, linenum, my_funcname, "DEBUG", message );
 
 	if( len < 0 ) 
 		return len;

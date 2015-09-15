@@ -1,0 +1,124 @@
+#!/bin/sh
+#
+# Detects OS we're compiling on and outputs a file specified by the first
+# argument, which in turn gets read while processing Makefile.
+#
+# The output will set the following variables:
+#   CC                          C Compiler path
+#   CXX                         C++ Compiler path
+#   PLATFORM_LDFLAGS            Linker flags
+#   PLATFORM_LIBS               Libraries flags
+#   PLATFORM_SHARED_EXT         Extension for shared libraries
+#   PLATFORM_SHARED_LDFLAGS     Flags for building shared library
+#                               This flag is embedded just before the name
+#                               of the shared library without intervening spaces
+#   PLATFORM_SHARED_CFLAGS      Flags for compiling objects for shared library
+#   PLATFORM_CCFLAGS            C compiler flags
+#   PLATFORM_CXXFLAGS           C++ compiler flags
+#
+
+OUTPUT=$1
+PREFIX=$2
+if test -z "$OUTPUT" || test -z "$PREFIX"; then
+  echo "usage: $0 <output-filename> <directory_prefix>" >&2
+  exit 1
+fi
+
+# Delete existing output, if it exists
+rm -f $OUTPUT
+touch $OUTPUT
+
+if test -z "$CC"; then
+    CC=cc
+fi
+
+if test -z "$CXX"; then
+    CXX=g++
+fi
+
+# Detect OS
+if test -z "$TARGET_OS"; then
+    TARGET_OS=`uname -s`
+fi
+
+COMMON_FLAGS=
+PLATFORM_CCFLAGS=
+PLATFORM_CXXFLAGS=
+PLATFORM_LDFLAGS=
+PLATFORM_LIBS=
+PLATFORM_SHARED_EXT="so"
+PLATFORM_SHARED_LDFLAGS="-shared -Wl,-soname -Wl,"
+PLATFORM_SHARED_CFLAGS="-fPIC"
+
+BUILD_FLAG=
+if [ "$BUILD_LEVEL" = "DEBUG" ]; then
+    BUILD_FLAG="-DDEBUG"
+else
+    BUILD_FLAG="-DRELEASE"
+fi
+if [ "$BUILD_OBJ" = "CloudSDK" ]; then
+    BUILD_FLAG="$BUILD_FLAG -DCloudSDK"
+else
+    BUILD_FLAG="$BUILD_FLAG -DCloudPy"
+fi
+if [ "$BUILD_TEST" = "NO_TEST" ]; then
+    BUILD_FLAG="$BUILD_FLAG -DNO_TEST"
+else
+    BUILD_FLAG="$BUILD_FLAG -DTEST"
+fi
+
+case "$TARGET_OS" in
+    CYGWIN_*)
+        ;;
+    Darwin)
+        ;;
+    Linux)
+        PLATFORM=OS_LINUX
+        COMMON_FLAGS="-pthread -Wno-write-strings -Werror -fPIC -shared -std=c++0x -DOS_LINUX $BUILD_FLAG"
+        PLATFORM_LDFLAGS="-fPIC -shared -lz -lcurl -lrt -lcrypto -lssl -lstdc++ -lpthread"
+        ;;
+    SunOS)
+        ;;
+    FreeBSD)
+        ;;
+    NetBSD)
+        ;;
+    OpenBSD)
+        ;;
+    DragonFly)
+        ;;
+    OS_ANDROID_CROSSCOMPILE)
+        CROSS_COMPILE=true
+        ;;
+    HP-UX)
+        ;;
+    IOS)
+        ;;
+    *)
+        echo "Unknown platform!" >&2
+        exit 1
+esac
+
+# We want to make a list of all cc files within src
+DIRS="$PREFIX/src"
+
+set -f # temporarily disable globbing so that our patterns aren't expanded
+PORTABLE_FILES=`find $DIRS -name '*.cpp' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+set +f # re-enable globbing
+
+# The sources consist of the portable files, plus the platform-specific file.
+echo "SOURCES=$PORTABLE_FILES" >> $OUTPUT
+
+PLATFORM_CCFLAGS="$PLATFORM_CCFLAGS $COMMON_FLAGS"
+PLATFORM_CXXFLAGS="$PLATFORM_CXXFLAGS $COMMON_FLAGS"
+
+echo "CC=$CC" >> $OUTPUT
+echo "CXX=$CXX" >> $OUTPUT
+echo "PLATFORM=$PLATFORM" >> $OUTPUT
+echo "PLATFORM_LDFLAGS=$PLATFORM_LDFLAGS" >> $OUTPUT
+echo "PLATFORM_LIBS=$PLATFORM_LIBS" >> $OUTPUT
+echo "PLATFORM_CCFLAGS=$PLATFORM_CCFLAGS" >> $OUTPUT
+echo "PLATFORM_CXXFLAGS=$PLATFORM_CXXFLAGS" >> $OUTPUT
+echo "PLATFORM_SHARED_CFLAGS=$PLATFORM_SHARED_CFLAGS" >> $OUTPUT
+echo "PLATFORM_SHARED_EXT=$PLATFORM_SHARED_EXT" >> $OUTPUT
+echo "PLATFORM_SHARED_LDFLAGS=$PLATFORM_SHARED_LDFLAGS" >> $OUTPUT

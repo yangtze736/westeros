@@ -58,6 +58,7 @@ class Parser{
 
 	public:
 		std::string parserKey(const std::string &strJson, const std::string &key);
+		bool judgeRespJson(const std::string &strJson, std::string &status, std::string &msg);
 		//
 		bool parseValidate(std::string &email, std::string &passwd, std::string uuid, const std::string &strJson);
 
@@ -69,17 +70,17 @@ class Parser{
 
 		bool parseListContainerObjects(std::string &token, std::string &uuid, std::string &container, const std::string &strJson);
 
-		bool parseCreateObject(std::string &token, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson);
+		bool parseCreateObject(std::string &token, std::string &user, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson);
 
 		bool parseDeleteObject(std::string &token, std::string &uuid, std::string &container, std::string &obj, const std::string &strJson);
 
 		bool parseCopy(std::string &token, std::string &uuid, std::string &containerName, std::string &objectName, std::string &destination, const std::string &strJson);
 
-		bool parseReadObject(std::string &token, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson);
+		bool parseReadObject(std::string &token, std::string &user, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson);
 
 		bool parseGetQuotaInfo(std::string &token, std::string &uuid, const std::string &strJson);
 
-		bool parseFileUpload(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &time, const std::string &strJson);
+		bool parseFileUpload(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &time, std::string &user, const std::string &strJson);
 
 		bool parseMergeFile(std::string &token, std::string &uuid, std::string &dest, std::string &flag, std::string &postField, const std::string &strJson);
 
@@ -97,7 +98,7 @@ class Parser{
 
 		bool parseBatchCopyFileDir(std::string &token, std::string &uuid, std::string &postField, const std::string &strJson);
 
-		bool parseReadFile(std::string &token, std::string &uuid, std::string &src, std::string &dst, const std::string &strJson);
+		bool parseReadFile(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &user, const std::string &strJson);
 
 		bool parseGetFileHistory(std::string &token, std::string &uuid, std::string &dst, const std::string &strJson);
 

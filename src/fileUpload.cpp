@@ -11,6 +11,7 @@
 //
 ///////////////////////////////////////////////////////////
 
+#include "middleware.h"
 #include "static.h"
 #include "fileUpload.h"
 #include "mfcFile.h"
@@ -21,24 +22,26 @@
 
 FileUpload::FileUpload()
 {
-	pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	//pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
+	m_lock = MiddleWare::getInstance()->m_lock;
 	initDB();
 }
 
 FileUpload::~FileUpload()
 {
-	pthread_spin_destroy(&m_lock);
+	//pthread_spin_destroy(&m_lock);
 }
 
 void FileUpload::initDB(void)
 {
-	m_db = new CppSQLite3DB;
-	m_db->open("./test.db");
+	//m_db = new CppSQLite3DB;
+	m_db = MiddleWare::getInstance()->m_db;
+	//m_db->open(DEFAULT_DB_FILE);
 	if(!m_db->tableExists("upload"))
 	{
 		pthread_spin_lock(&m_lock);
 		try{
-			m_db->execDML("create table upload(id char(64) primary key, total int, now int);");
+			m_db->execDML("create table upload(id char(64) primary key, user char(32), file char(128), total int, now int);");
 		}
 		catch(CppSQLite3Exception &e){
 			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
@@ -57,7 +60,7 @@ int FileUpload::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off
   if((curtime - myp->lastruntime) >= MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL)
   {
     myp->lastruntime = curtime;
-	char buf[128] = {0};
+	char buf[256] = {0};
 	sprintf(buf, "update upload set now = %ld, total= %ld where id = '%s';", (long int)ulnow,(long int)ultotal,myp->uuid.c_str());
 
 	pthread_spin_lock(&myp->lock);
@@ -70,9 +73,9 @@ int FileUpload::xferinfo(void *p, curl_off_t dltotal, curl_off_t dlnow, curl_off
 	pthread_spin_unlock(&myp->lock);
 
 	PR("%s", buf);
-	PR("UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-			"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-			"\r\n",ulnow, ultotal, dlnow, dltotal);
+	//PR("UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+	//		"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+	//		"\r\n",ulnow, ultotal, dlnow, dltotal);
   }
 
   // don't limit file size.
@@ -238,11 +241,11 @@ int FileUpload::handle_mode(const std::string &strFilename, const std::string &t
 	return 0;
 }
 
-int FileUpload::file_upload(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag)
+int FileUpload::file_upload(const std::string &strFilename, const std::string &user, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag)
 {
 	// insert data
-	char buf[128] = {0};
-	sprintf(buf, "insert into upload values ('%s', 0, 0);",uuid.c_str());
+	char buf[1024] = {0};
+	sprintf(buf, "insert into upload values ('%s', '%s', '%s', 0, 0);",uuid.c_str(),user.c_str(),strFilename.c_str());
 	pthread_spin_lock(&m_lock);
 	try{
 		m_db->execDML(buf);
@@ -277,7 +280,7 @@ int FileUpload::file_upload(const std::string &strFilename, const std::string &u
 	struct stat file_info;
 	FILE *fp;
 	if(handle_mode(strFilename, token, flag, file_info, &fp) < 0){
-		strResponse = "handle fileUpload mode error!";
+		strResponse = "{\"status\":15002,\"errMsg\":\"handle fileUpload mode error\"}";
 		return -1;
 	}
 
@@ -306,6 +309,21 @@ int FileUpload::file_upload(const std::string &strFilename, const std::string &u
 	PR("***************************");
 	res = curl_easy_perform(curl);
 	PR("***************************");
+
+	// capture fileupload result.
+	if(res == CURLE_OK){
+		char buff[256] = {0};
+		int total = (int)file_info.st_size;
+		int now = total;
+		sprintf(buf, "update upload set now = %ld, total= %ld where id = '%s';", (long int)now, (long int)total, uuid.c_str());
+		pthread_spin_lock(&m_lock);
+		try{
+			m_db->execDML(buf);
+		}catch(CppSQLite3Exception &e){
+			fprintf(stderr, "%d , %s.\n", e.errorCode(), e.errorMessage());
+		}
+		pthread_spin_unlock(&m_lock);
+	}
 
 	// remove tmp file
 	fclose(fp);

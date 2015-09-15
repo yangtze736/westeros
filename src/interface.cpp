@@ -14,8 +14,20 @@
 #include "middleware.h"
 #include <string.h>
 
+#ifdef CloudPy
+
 extern "C" {
 	MiddleWare obj;
+
+	bool getVersionInfo(char *version, char *info){
+		std::string version_str;
+		std::string info_str;
+
+		getVersionInfo(version_str, info_str);
+		strcpy(version, version_str.c_str());
+		strcpy(info, info_str.c_str());
+	}
+
 
 	bool data_pipeline(char *method, char *json, char *response){
 		std::string method_str(method);
@@ -26,27 +38,39 @@ extern "C" {
 		strcpy(response, response_str.c_str());
 	}
 
-	bool getVersionInfo(char *version, char *info){
-		std::string version_str;
-		std::string info_str;
-
-		obj.getVersionInfo(version_str, info_str);
-		strcpy(version, version_str.c_str());
-		strcpy(info, info_str.c_str());
-	}
-
-	bool getUploadTask(char *query){
+	bool getUploadTask(char *user, char *query){
+		std::string userStr(user);
 		std::string queryStr;
 
-		obj.getUploadTask(queryStr);
+		obj.getUploadTask(userStr, queryStr);
 		strcpy(query, queryStr.c_str());
 	}
 
-	bool getDownloadTask(char *query){
+	bool getDownloadTask(char *user, char *query){
+		std::string userStr(user);
 		std::string queryStr;
 
-		obj.getDownloadTask(queryStr);
+		obj.getDownloadTask(userStr, queryStr);
 		strcpy(query, queryStr.c_str());
+	}
+
+	bool cleanByUser(char *user){
+		std::string userStr(user);
+
+		obj.cleanByUser(userStr);
+	}
+
+	bool cleanAllByUser(char *user){
+		std::string userStr(user);
+
+		obj.cleanAllByUser(userStr);
+	}
+
+	bool cleanByUserKey(char *user, char *file){
+		std::string userStr(user);
+		std::string fileStr(file);
+
+		obj.cleanByUserKey(userStr, fileStr);
 	}
 
 	bool checkTaskStatus(char *uuid, char *response){
@@ -57,3 +81,4 @@ extern "C" {
 		strcpy(response, response_str.c_str());
 	}
 }
+#endif

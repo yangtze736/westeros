@@ -43,7 +43,7 @@ bool Parser::genTaskStr(std::string &queryStr, std::map<std::string,std::string>
 	std::map<std::string,std::string>::iterator it = taskMap.begin();
 	for(; it != taskMap.end(); it++)
 	{
-		item["uuid"] = it->first;
+		item["file"] = it->first;
 		item["status"] = it->second;
 		arrayObj.append(item);
 	}
@@ -186,6 +186,18 @@ std::string Parser::parserKey(const std::string &strJson, const std::string &key
 	return val;
 }
 
+bool Parser::judgeRespJson(const std::string &strJson, std::string &status, std::string &msg)
+{
+	Json::Reader reader;
+	Json::Value value;
+
+	reader.parse(strJson, value);
+	status = value["status"].asString();
+	msg = value["msg"].asString();
+
+	return true;
+}
+
 bool Parser::parseValidate(std::string &email, std::string &passwd, std::string uuid, const std::string &strJson)
 {
 	Json::Reader reader;
@@ -250,7 +262,7 @@ bool Parser::parseListContainerObjects(std::string &token, std::string &uuid, st
 	return true;
 }
 
-bool Parser::parseCreateObject(std::string &token, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson)
+bool Parser::parseCreateObject(std::string &token, std::string &user, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson)
 {
 	Json::Reader reader;
 	Json::Value value;
@@ -261,6 +273,7 @@ bool Parser::parseCreateObject(std::string &token, std::string &uuid, std::strin
 	uuid = value["uuid"].asString();
 	container = value["Container-Name"].asString();
 	obj = value["Object-Name"].asString();
+	user = value["userName"].asString();
 
 	return true;
 }
@@ -294,7 +307,7 @@ bool Parser::parseCopy(std::string &token, std::string &uuid, std::string &conta
 	return true;
 }
 
-bool Parser::parseReadObject(std::string &token, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson)
+bool Parser::parseReadObject(std::string &token, std::string &user, std::string &uuid, std::string &local, std::string &container, std::string &obj, const std::string &strJson)
 {
 	Json::Reader reader;
 	Json::Value value;
@@ -305,6 +318,7 @@ bool Parser::parseReadObject(std::string &token, std::string &uuid, std::string 
 	uuid = value["uuid"].asString();
 	container = value["Container-Name"].asString();
 	obj = value["Object-Name"].asString();
+	user = value["userName"].asString();
 
 	return true;
 }
@@ -321,7 +335,7 @@ bool Parser::parseGetQuotaInfo(std::string &token, std::string &uuid, const std:
 	return true;
 }
 
-bool Parser::parseFileUpload(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &time, const std::string &strJson)
+bool Parser::parseFileUpload(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &time, std::string &user, const std::string &strJson)
 {
 	Json::Reader reader;
 	Json::Value value;
@@ -332,6 +346,7 @@ bool Parser::parseFileUpload(std::string &token, std::string &uuid, std::string 
 	src = value["Source"].asString();
 	dst = value["Destination"].asString();
 	time = value["time"].asString();
+	user = value["userName"].asString();
 
 	return true;
 }
@@ -499,7 +514,7 @@ bool Parser::parseBatchCopyFileDir(std::string &token, std::string &uuid, std::s
 	return true;
 }
 
-bool Parser::parseReadFile(std::string &token, std::string &uuid, std::string &src, std::string &dst, const std::string &strJson)
+bool Parser::parseReadFile(std::string &token, std::string &uuid, std::string &src, std::string &dst, std::string &user, const std::string &strJson)
 {
 	Json::Reader reader;
 	Json::Value value;
@@ -509,6 +524,7 @@ bool Parser::parseReadFile(std::string &token, std::string &uuid, std::string &s
 	uuid = value["uuid"].asString();
 	src = value["Source"].asString();
 	dst = value["Destination"].asString();
+	user = value["userName"].asString();
 
 	return true;
 }

@@ -49,7 +49,7 @@ class FileDownload :public HttpClient{
 		int handle_mode(const std::string &strFilename, const std::string &token, int flag);
 
 	public:
-		virtual int file_download(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
+		virtual int file_download(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
 
 	private:
 		CppSQLite3DB *m_db;

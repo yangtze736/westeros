@@ -1,7 +1,7 @@
 ```
 modules: Middleware
 create : 2015-05
-author : Sari Cloud Group
+author : jiangzhe (Sari Cloud Group)
 ```
 
 ``
@@ -19,19 +19,9 @@ Directory info
 |  include   | function declaration |
 |  lib       | dependent library    |
 |  src       | function definitions |
-|  test      | some test files      |
 |  samples   | use middleware demo  |
 |  package   | sourceCode for sqlite|
-|  daemon    | a daemon program     |
-
-
-``
-Deps
-``
-
-	openssl
-	libcurl
-	sqlite3
+|  docs      | middleware tutorial  |
 
 
 ``
@@ -39,11 +29,11 @@ Build and install(Briefly)
 ``
 
  - type `sudo make` to do make, then you can `cd samples` 
- - and do `make` operator to generate a demo, test it.
+ - and discovery it. 
 
 
 ``
 Comments to:
 ``
 
-    jiangzhe    jiangz_os@sari.ac.cn
+    email :    jiangz_os@sari.ac.cn

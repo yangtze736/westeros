@@ -594,7 +594,7 @@ std::string GenerateUrl::genVerifyToken(const std::string &strIpPort)
 
 	strUrl.append(1 ? "https://" : "http://");
 	strUrl.append(strIpPort.empty() ? "" : strIpPort);
-	strUrl.append("/oauth/verify_token");
+	strUrl.append("/v1/verify_token");
 
 	return strUrl;
 }

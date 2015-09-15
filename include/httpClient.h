@@ -40,10 +40,10 @@ class HttpClient{
 		int copy(const std::string &token, const std::string &dest, const std::string &strUrl, std::string &strResponse, const char *pCaPath=NULL);
 
 	public:
-		virtual int create_object(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse){};
-		virtual int read_object(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse){};
-		virtual int file_upload(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag){};
-		virtual int file_download(const std::string &strFilename, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag){};
+		virtual int create_object(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse){};
+		virtual int read_object(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse){};
+		virtual int file_upload(const std::string &strFilename, const std::string &user, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag){};
+		virtual int file_download(const std::string &strFilename, const std::string &uuid, const std::string &user, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag){};
 
 	public:
 		bool			m_bDebug;
