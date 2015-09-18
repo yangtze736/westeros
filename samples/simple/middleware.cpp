@@ -64,10 +64,25 @@ int main()
 #endif
 
 #if 0
-	std::string method = "networkRegister";
-	std::string jsonStr = "{\"username\":\"messi\",\"password\":\"123456\",\"password_confirmation\":\"123456\",\"email\":\"messi@126.com\",\"name\":\"zhang\",\"uuid\":\"20150713111\"}";
+	std::string method = "validate";
+	std::string jsonStr = "{\"email\":\"dell@163.com\",\"password\":\"123456\",\"uuid\":\"201509171318\"}";
 	std::string responseStr;
 	middleware->data_pipeline(method, jsonStr, responseStr);
+#endif
+#if 0
+	std::string method = "userRegister";
+	//std::string jsonStr = "{\"username\":\"messi\",\"password\":\"123456\",\"password_confirmation\":\"123456\",\"email\":\"messi@126.com\",\"name\":\"zhang\",\"uuid\":\"20150713111\"}";
+	std::string jsonStr = "{\"X-Auth-Token\":\"jAhqOQtc9q0RhZFwYDjzknRXUdayCwluyge2EBLE\",\"uuid\":\"201509171320\"}";
+	std::string responseStr;
+	middleware->data_pipeline(method, jsonStr, responseStr);
+	fprintf(stdout,"resp: %s\n", responseStr.c_str());
+#endif
+#if 1
+	std::string method = "createContainer";
+	std::string jsonStr = "{\"X-Auth-Token\":\"jAhqOQtc9q0RhZFwYDjzknRXUdayCwluyge2EBLE\",\"uuid\":\"201509171320\",\"Container-Name\":\"new_conatiner\"}";
+	std::string responseStr;
+	middleware->data_pipeline(method, jsonStr, responseStr);
+	fprintf(stdout,"resp: %s\n", responseStr.c_str());
 #endif
 #if 0
 	std::string method = "fileUpload";

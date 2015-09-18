@@ -25,21 +25,17 @@
 
 FileDownload::FileDownload()
 {
-	//pthread_spin_init(&m_lock, PTHREAD_PROCESS_PRIVATE);
 	m_lock = MiddleWare::getInstance()->m_lock;
 	initDB();
 }
 
 FileDownload::~FileDownload()
 {
-	//pthread_spin_destroy(&m_lock);
 }
 
 void FileDownload::initDB(void)
 {
-	//m_db = new CppSQLite3DB;
 	m_db = MiddleWare::getInstance()->m_db;
-	//m_db->open(DEFAULT_DB_FILE);
 	if(!m_db->tableExists("download"))
 	{
 		pthread_spin_lock(&m_lock);

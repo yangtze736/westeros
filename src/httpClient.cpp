@@ -61,7 +61,8 @@ int HttpClient::put(const std::string &token, const std::string &strUrl, std::st
 	}
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, slist);
 
-	curl_easy_setopt(curl, CURLOPT_PUT, 1L);
+	//curl_easy_setopt(curl, CURLOPT_PUT, 1L);
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
 	curl_easy_setopt(curl, CURLOPT_URL, strUrl.c_str());
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, OnWriteData);
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&strResponse);
@@ -428,8 +429,13 @@ bool HttpClient::encrypt_filename(const std::string &token, const std::string &s
 	PR("Access_token : [%s]", pResult.c_str());
 
 
-	CSecrypto* sc = new CSecrypto();
-	sc->secrypto_init();
+	CSecrypto* sc = NULL;
+	try{
+		sc = new CSecrypto();
+	}catch(...){
+		fprintf(stderr, "catch except when new CSecrypto\n");
+		return false;
+	}
 	// add openssl conf
 	CSecrypto::load_padlock();
 
@@ -500,9 +506,13 @@ bool HttpClient::decrypt_filename(const std::string &token, const std::string &s
 	std::string pResult(tokenJson);
 	PR("Access_token : [%s]", pResult.c_str());
 
-
-	CSecrypto* sc = new CSecrypto();
-	sc->secrypto_init();
+	CSecrypto* sc = NULL;
+	try{
+		sc = new CSecrypto();
+	}catch(...){
+		fprintf(stderr, "catch except when new CSecrypto\n");
+		return false;
+	}
 	// add openssl conf
 	CSecrypto::load_padlock();
 

@@ -52,7 +52,6 @@ class FileUpload :public HttpClient{
 		virtual int file_upload(const std::string &strFilename, const std::string &user, const std::string &uuid, const std::string &token, const std::string &strUrl, std::string &strResponse, int flag);
 
 	private:
-		//SqliteWrap *m_sqliteWrap;
 		CppSQLite3DB *m_db;
 		pthread_spinlock_t m_lock;
 };

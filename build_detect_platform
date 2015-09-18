@@ -61,11 +61,6 @@ if [ "$BUILD_OBJ" = "CloudSDK" ]; then
 else
     BUILD_FLAG="$BUILD_FLAG -DCloudPy"
 fi
-if [ "$BUILD_TEST" = "NO_TEST" ]; then
-    BUILD_FLAG="$BUILD_FLAG -DNO_TEST"
-else
-    BUILD_FLAG="$BUILD_FLAG -DTEST"
-fi
 
 case "$TARGET_OS" in
     CYGWIN_*)
@@ -103,7 +98,9 @@ esac
 DIRS="$PREFIX/src"
 
 set -f # temporarily disable globbing so that our patterns aren't expanded
-PORTABLE_FILES=`find $DIRS -name '*.cpp' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
+PRUNE_TEST="-name *test*.cpp -prune"
+
+PORTABLE_FILES=`find $DIRS $PRUNE_TEST -o -name '*.cpp' -print | sort | sed "s,^$PREFIX/,," | tr "\n" " "`
 set +f # re-enable globbing
 
 # The sources consist of the portable files, plus the platform-specific file.

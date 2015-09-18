@@ -5,7 +5,8 @@ author : jiangzhe (Sari Cloud Group)
 ```
 
 # Intro
- * Middleware Framwork
+
+ - Middleware Framwork
 
 
 # Directory info
@@ -22,10 +23,10 @@ author : jiangzhe (Sari Cloud Group)
 
 # Build and install(Briefly)
 
- * type `sudo make` to do make, then you can `cd samples` 
- * and discovery it. 
+ - type `sudo make` to do make, then you can `cd samples` 
+ - and discovery it. 
 
 
 ## Comments to:
 
-    email: jiangz_os@sari.ac.cn
+    email : jiangz_os@sari.ac.cn

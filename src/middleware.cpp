@@ -23,8 +23,6 @@
 #include "readObject.h"
 #include "fileUpload.h"
 #include "fileDownload.h"
-#include "snappy.h"
-#include "compress.h"
 #include "trap.h"
 
 #include <string.h>
@@ -117,21 +115,9 @@ MiddleWare::MiddleWare()
 {
 	PR("MiddleWare::MiddleWare");
 
-#ifdef TEST
-	test();
-	exit(0);
-#endif
-#ifdef CloudSDK
-	PR("TEST #ifdef CloudSDK");
-#endif
-#ifdef CloudPy
-	PR("TEST #ifdef CloudPy");
-#endif
 	PR("MiddleWare::getInstance() address: %p", MiddleWare::getInstance());
 	PR("MiddleWare::getInstance()->m_db address: %p", MiddleWare::getInstance()->m_db);
 	PR("MiddleWare::getInstance()->m_lock address: %p", MiddleWare::getInstance()->m_lock);
-	PR("m_db address: %p", m_db);
-	PR("m_lock address: %p", m_lock);
 }
 
 MiddleWare::~MiddleWare()
@@ -1388,14 +1374,28 @@ bool MiddleWare::getTenant(const std::string &token, std::string &tenant, std::s
 	std::string output;
 
 	Parser *parser = new Parser;
-	CSecrypto *sc = new CSecrypto;
-	sc->secrypto_init();
+	CSecrypto *sc = NULL;
+	try{
+		sc = new CSecrypto;
+	}catch(...){
+		strResponse = "{\"status\":\"" + toStr(15004) + "\",\"errMsg\":\"" \
+					   + std::string("catch except when new CSecrypto") + "\"}";
+		return false;
+	}
 
 	char tokenJson[256] = {0};
 	sprintf(tokenJson, "{\"access_token\":\"%s\"}", token.c_str());
 	string tokenString(tokenJson);
 
-	int ret = sc->convert_ukey2_cloudtoken(tokenString, output);
+	// fix bug, if do not catch except, crash.
+	int ret = 0;
+	try{
+		ret = sc->convert_ukey2_cloudtoken(tokenString, output);
+	}catch(...){
+		strResponse = "{\"status\":\"" + toStr(15004) + "\",\"errMsg\":\"" \
+					   + std::string("catch except at convert_ukey2_cloudtoken") + "\"}";
+		return false;
+	}
 	std::string errMsg;
 	if(!judgeReturnCode(ret, errMsg))
 	{
@@ -1476,43 +1476,6 @@ int MiddleWare::judgeFlag(ParameterStruct &paraStruct)
 	}
 }
 
-bool MiddleWare::test(void)
-{
-	std::string original0 = "https://1.2.3.4:443/测试 BASE64";
-	PR("original0 [%s]", original0.c_str());
-	std::string original1 = base64Encode(original0);
-	PR("original1 [%s]", original1.c_str());
-	std::string original2 = base64Decode(original1);
-	PR("original2 [%s]", original2.c_str());
-
-	// test encode && decode	
-	std::string str1 = "https://1.2.3.4:443/v1/AUTH_messi126com/normal/文 件3?op=CREATE&overwrite=true";
-	PR("str1 [%s]",str1.c_str());std::string str2 = urlEncode(str1);
-	PR("str2 [%s]",str2.c_str());std::string str3 = urlDecode(str2);
-	PR("str3 [%s]",str3.c_str());
-
-	// test compress && decompress
-	std::string ss;for(int i=0;i<1024;i++)ss+="str";ss+="finish!";
-	std::string compress;
-	int compress_len = snappy::Compress(ss.c_str(),ss.length(),&compress);
-	PR("inlen:%d\noutlen:%d\nret:%d\ncompress:\n[%s]", \
-			(int)ss.length(),(int)compress.length(),compress_len,compress.c_str());
-	std::string sRecovery;
-	bool b = snappy::Uncompress(compress.c_str(),compress_len,&sRecovery);
-	PR("\nsRecovery.len:%d\nsRecovery:\n[%s]",(int)sRecovery.length(),sRecovery.c_str());
-
-	// test compress file && decompress file
-	CompressFile("/home/bran/upload/swift.pdf");
-	UncompressFile("/home/bran/upload/swift.pdf.comp");
-
-	// test split file && merge file
-	//MfcFile::splitFile("./split_file");
-	//sleep(10);
-	//MfcFile::mergeFile("./split_file.001");
-
-	return true;
-}
-
 std::string MiddleWare::keepRespLength(const std::string &responseStr)
 {
 	std::string ret;
@@ -1532,3 +1495,4 @@ std::string MiddleWare::keepRespLength(const std::string &responseStr)
 	
 	return ret;
 }
+

@@ -108,7 +108,6 @@ class MiddleWare : public Boot{
 		bool parseFromStr(const std::string &str, const char *key, std::string &value);
 		bool coverParameter(const std::string &para, const std::string &value, ParameterStruct &paraStruct);
 		bool getTenant(const std::string &token, std::string &tenant, std::string &strResponse);
-		bool test(void);
 		bool recordTask2DB(const std::string &uuid, const std::string &response);
 
 		std::string keepRespLength(const std::string &responseStr);
@@ -117,10 +116,9 @@ class MiddleWare : public Boot{
 		std::string m_strIpPort;
 };
 
-//static ConfApplication *g_conf = new ConfApplication(DEFAULT_CONF_FILE);
-
 // Public Interface
-inline bool getVersionInfo(std::string &version, std::string &info)
+inline
+bool getVersionInfo(std::string &version, std::string &info)
 {
 	version = MIDDLEWARE_VERSION_STRING;
 
