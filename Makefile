@@ -17,7 +17,6 @@ BUILD_LEVEL ?= DEBUG
 BUILD_OBJ ?= CloudSDK
 
 HOME=/usr/local/middleware
-LIBJSON=$(HOME)/lib/libjson.so
 LIBSQLITE=$(HOME)/lib/libsqlite3.so
 LIBSNAPPY=$(HOME)/lib/libsnappy.so.1.3.0
 
@@ -32,7 +31,7 @@ CFLAGS += -I. -I./include $(PLATFORM_CCFLAGS) $(OPT)
 CXXFLAGS += -I. -I./include $(PLATFORM_CXXFLAGS) $(OPT)
 
 LDFLAGS += $(PLATFORM_LDFLAGS)
-LIBS += $(PLATFORM_LIBS) $(LIBJSON) $(LIBSQLITE) $(LIBSNAPPY)
+LIBS += $(PLATFORM_LIBS) $(LIBSQLITE) $(LIBSNAPPY)
 
 LIBOBJECTS = $(SOURCES:.cpp=.o)
 
@@ -44,21 +43,26 @@ LIBRARY = libmiddleware.so
 
 
 all: check $(LIBRARY)
-	cp -fr $(LIBRARY) $(HOME)/lib/
 
 test: $(LIBRARY) $(TESTS)
 	for t in $(TESTS); do echo "***** Running $$t"; ./$$t || exit 1; done
 
 check:
 	cd lib/ && tar zxvf libdependent.tar.gz
-	if [ ! -d $(HOME)/lib ];then mkdir -p $(HOME)/lib;fi
-	cp -fr lib/* $(HOME)/lib
 
 clean:
 	rm -fr src/*.o
 	rm -fr lib/lib*.so*
 	rm -fr build_config.mk
 	rm -fr $(LIBRARY) $(TESTS)
+
+install: check $(LIBRARY)
+	if [ ! -d $(HOME)/lib ];then mkdir -p $(HOME)/lib;fi
+	cp -fr lib/* $(HOME)/lib
+	cp -fr $(LIBRARY) $(HOME)/lib/
+
+uninstall:
+	rm -fr $(HOME)/lib/
 
 $(LIBRARY): $(LIBOBJECTS)
 	$(CXX) -o $(LIBRARY) $(LIBOBJECTS) $(LDFLAGS) $(LIBS)
