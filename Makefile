@@ -17,6 +17,7 @@ BUILD_LEVEL ?= DEBUG
 BUILD_OBJ ?= CloudSDK
 
 HOME=/usr/local/middleware
+LIBSECRYPTO=$(HOME)/lib/libsecrypto.so
 LIBSQLITE=$(HOME)/lib/libsqlite3.so
 LIBSNAPPY=$(HOME)/lib/libsnappy.so.1.3.0
 
@@ -31,7 +32,7 @@ CFLAGS += -I. -I./include $(PLATFORM_CCFLAGS) $(OPT)
 CXXFLAGS += -I. -I./include $(PLATFORM_CXXFLAGS) $(OPT)
 
 LDFLAGS += $(PLATFORM_LDFLAGS)
-LIBS += $(PLATFORM_LIBS) $(LIBSQLITE) $(LIBSNAPPY)
+LIBS += $(PLATFORM_LIBS) $(LIBSQLITE) $(LIBSECRYPTO) $(LIBSNAPPY)
 
 LIBOBJECTS = $(SOURCES:.cpp=.o)
 
@@ -49,6 +50,8 @@ test: $(LIBRARY) $(TESTS)
 
 check:
 	cd lib/ && tar zxvf libdependent.tar.gz
+	if [ ! -d $(HOME)/lib ];then mkdir -p $(HOME)/lib;fi
+	cp -fr lib/* $(HOME)/lib
 
 clean:
 	rm -fr src/*.o
@@ -56,9 +59,7 @@ clean:
 	rm -fr build_config.mk
 	rm -fr $(LIBRARY) $(TESTS)
 
-install: check $(LIBRARY)
-	if [ ! -d $(HOME)/lib ];then mkdir -p $(HOME)/lib;fi
-	cp -fr lib/* $(HOME)/lib
+install: all
 	cp -fr $(LIBRARY) $(HOME)/lib/
 
 uninstall:
@@ -68,11 +69,11 @@ $(LIBRARY): $(LIBOBJECTS)
 	$(CXX) -o $(LIBRARY) $(LIBOBJECTS) $(LDFLAGS) $(LIBS)
 
 urlhandle_test: $(LIBRARY)
-	$(CXX) -I./include -Werror -std=c++0x \
+	$(CXX) -I./include -Wno-write-strings -Werror -std=c++0x \
 	src/testharness.cpp src/urlhandle_test.cpp -o $@ $(LIBRARY)
 
 snappy_test: $(LIBRARY)
-	$(CXX) -I./include -Werror -std=c++0x \
+	$(CXX) -I./include -Wno-write-strings -Werror -std=c++0x \
 	src/testharness.cpp src/snappy_test.cpp -o $@ $(LIBRARY) $(LIBSNAPPY)
 
 # The rule how to make *.o

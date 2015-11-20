@@ -1,0 +1,7 @@
+*.o
+*.so
+*.so.*
+build_config.mk
+snappy_test
+urlhandle_test
+test.db

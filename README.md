@@ -45,15 +45,15 @@ Middleware is built and installed like any other open source code.
 
 Normally,
 
-    make
+    sudo make
     sudo make install
 
 **Notes**:
 
- - There are some middleware custom options(build mode) you must know, you need type 
- - `make BUILD_OBJ=CloudPy` for python, specify the build level with option BUILD_LEVEL,
- - type `sudo make install BUILD_OBJ=CloudPy` to install it. Please configure your 
- - runtime environment use command : `export LD_LIBRARY_PATH=/usr/local/middleware/lib` 
+ - There are some middleware custom options(build mode) you must know, type `sudo
+ - make BUILD_OBJ=CloudPy` for python, specify build level use option BUILD_LEVEL,
+ - type `sudo make install BUILD_OBJ=CloudPy` to install it. Please configure your
+ - runtime environment use : `export LD_LIBRARY_PATH=/usr/local/middleware/lib`
  - At last, we put some demos in samples dir, maybe there are useful to you.
 
 
