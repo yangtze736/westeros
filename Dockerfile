@@ -15,6 +15,4 @@ RUN ["/bin/bash", "-c", "cd ~ && /usr/bin/git clone https://github.com/yangtze73
 RUN echo 'export LD_LIBRARY_PATH=$PATH:/usr/local/middleware/lib' >> ~/.bashrc
 
 #build middleware
-WORKDIR ~/Westeros
-RUN make && make install
-
+RUN ["/bin/bash", "-c", "cd ~/Westeros && make && make install" ]
