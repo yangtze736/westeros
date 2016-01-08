@@ -1,14 +1,5 @@
 ## Middleware
-
----------------------
-
-modules: Middleware
-
-create : 2015-05
-
-author : jiangzhe
-
----------------------
+=========
 
 ### Intro
 
@@ -63,5 +54,5 @@ I'm no autoconf wizard, and there may be dragons lurking there.
 
 Thanks, and I hope you find it useful.
 
-jiangz_os@sari.ac.cn
+jiangzheahu@126.com
 

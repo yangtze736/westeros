@@ -43,7 +43,7 @@ TESTS = \
 LIBRARY = libmiddleware.so
 
 
-all: check $(LIBRARY)
+all: $(LIBRARY)
 
 test: $(LIBRARY) $(TESTS)
 	for t in $(TESTS); do echo "***** Running $$t"; ./$$t || exit 1; done
@@ -59,7 +59,7 @@ clean:
 	rm -fr build_config.mk
 	rm -fr $(LIBRARY) $(TESTS)
 
-install: all
+install: check all
 	cp -fr $(LIBRARY) $(HOME)/lib/
 
 uninstall:
