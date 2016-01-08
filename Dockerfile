@@ -1,11 +1,12 @@
 FROM ubuntu:14.04
 
 #install software
-RUN apt-get install -y gcc
-RUN apt-get install -y make
-RUN apt-get install -y git
-RUN apt-get install -y curl-devel
-RUN apt-get install -y openssl-devel
+RUN apt-get update
+RUN apt-get install -yq gcc
+RUN apt-get install -yq make
+RUN apt-get install -yq git
+RUN apt-get install -yq curl-devel
+RUN apt-get install -yq openssl-devel
 
 #get remote source
 RUN ["/bin/bash", "-c", "cd ~ && /usr/bin/git clone https://github.com/yangtze736/Westeros"]
