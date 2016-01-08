@@ -2,7 +2,7 @@ FROM ubuntu:14.04
 
 #install software
 RUN apt-get update
-RUN apt-get install -yq gcc
+RUN apt-get install -yq g++
 RUN apt-get install -yq make
 RUN apt-get install -yq git
 RUN apt-get install -yq libcurl4-openssl-dev
